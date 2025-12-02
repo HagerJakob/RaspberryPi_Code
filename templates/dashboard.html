@@ -50,9 +50,8 @@ canvas {
     transition: all 0.2s ease-in-out;
 }
 
-/* Shift Pfeile Styling */
 .shift-arrow {
-    position: fixed;
+    position: absolute; /* statt fixed */
     font-size: 4rem;
     font-weight: bold;
     text-align: center;
@@ -60,21 +59,22 @@ canvas {
     user-select: none;
 }
 
-/* Downshift links oben etwas höher */
+/* Downshift links außen */
 #downshift {
-    left: +200px;      /* weiter links */
-    top: +40px;         /* etwas nach oben verschoben */
+    left: -60px;   /* außerhalb der Box, aber innerhalb des Dashboards */
+    top: 30%;      /* etwas höher */
     color: red;
     display: none;
 }
 
-/* Upshift rechts oben etwas höher */
+/* Upshift rechts außen */
 #upshift {
-    right: +200px;     /* weiter rechts */
-    top: +40px;         /* etwas nach oben verschoben */
+    right: -60px;  /* außerhalb der Box, aber innerhalb des Dashboards */
+    top: 30%;      /* etwas höher */
     color: lime;
     display: none;
 }
+
 </style>
 
 </head>
