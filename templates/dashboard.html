@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Racing Dashboard</title>
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<style>
+    body { margin:0; overflow:hidden; background:#000; font-family:Arial; color:#fff; }
+    #wrap {
+        width:1280px; height:400px; margin:0 auto; position:relative;
+        background:#111;
+        background-image: repeating-linear-gradient(45deg, #111, #111 2px, #222 2px, #222 6px),
+                         linear-gradient(to bottom, #000 0%, #111 100%);
+        border-radius:20px;
+        overflow:hidden;
+    }
+    .frame-overlay {                                                                                                                                                                                                                                                                                                                                                        
+        position:absolute; inset:0;
+        border-radius:40px;
+        box-shadow: inset 0 0 120px rgba(0,0,0,0.8);
+        pointer-events:none;
+    }
+    .sidebox {
+        position:absolute; top:40px; width:220px; height:320px;
+        display:flex; flex-direction:column; justify-content:space-between;
+        padding:15px; font-size:20px; opacity:0.9;
+    }
+    #left { left:40px; }
+    #right { right:-120px; }
+    .label { opacity:0.55; font-size:16px; }
+    .val   { font-size:26px; text-shadow:0 0 7px cyan; }
+    canvas#gauge { position:absolute; top:0; left:0; }
+</style>
+</head>
+<body>
+<div id="wrap">
+    <canvas id="gauge" width="1280" height="400"></canvas>
+    <div class="frame-overlay"></div>
+
+    <div id="left" class="sidebox">
+        <div><div class="label">OIL TEMP</div><div class="val" id="oil">60</div></div>
+        <div><div class="label">FUEL</div><div class="val" id="fuel">73%</div></div>
+        <div><div class="label">COOLANT</div><div class="val" id="temp">20C</div></div>
+    </div>
+
+    <div id="right" class="sidebox">
+        <div><div class="label">BATTERY</div><div class="val" id="voltage">11,8V</div></div>
+        <div><div class="label">BOOST</div><div class="val" id="boost">2 bar</div></div>
+        <div><div class="label">OIL PRESS</div><div class="val" id="oilpress">0,3 bar</div></div>
+    </div>
+</div>
+
+<script>
+let speed=0, rpm=0, gear="N", temp=70;
+
+// Canvas Setup
+const c = document.getElementById("gauge");
+const ctx = c.getContext("2d");
+const cx=640, cy=400, rOuter=360, rInner=340;
+const start=Math.PI*1.1, end=Math.PI*1.9;
+
+// Zeichnen
+function drawGauge(){
+    ctx.clearRect(0,0,c.width,c.height);
+
+    // Basis-RPM-Bogen
+    ctx.beginPath();
+    ctx.arc(cx, cy+50, rOuter, start, end);
+    ctx.strokeStyle="rgba(90,90,90,0.35)";
+    ctx.lineWidth=38;
+    ctx.stroke();
+
+    // RPM-Bogen
+    let rpmPercent = Math.min(rpm/10000,1);
+    let rpmEnd = start + (end-start)*rpmPercent;
+    ctx.beginPath();
+    ctx.arc(cx, cy+50, rOuter, start, rpmEnd);
+    ctx.strokeStyle="#d64cff";
+    ctx.lineWidth=38;
+    ctx.stroke();
+
+    // Speed-Zeiger
+    let sp = Math.min(speed/255,1);
+    let ang = start + (end-start)*sp;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy+60);
+    ctx.lineTo(cx + Math.cos(ang)*rInner, cy + 60 + Math.sin(ang)*rInner);
+    ctx.strokeStyle="white";
+    ctx.lineWidth=4;
+    ctx.stroke();
+
+    // Speed Text
+    ctx.font="120px Courier New";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillStyle="cyan";
+    ctx.fillText(speed, cx, cy-160);
+
+    // RPM Text
+    ctx.font="60px Courier New";
+    ctx.fillStyle="#d64cff";
+    ctx.fillText(rpm, cx, cy-80);
+}
+
+// Socket.IO
+const socket = io();
+
+socket.on('update', data => {
+    if(data.RPM!==undefined) rpm = parseInt(data.RPM);
+    if(data.SPEED!==undefined) speed = parseInt(data.SPEED);
+    if(data.COOLANT!==undefined) temp = parseInt(data.COOLANT);
+
+    // Sidebox Updates
+    document.getElementById("temp").textContent = temp + "C";
+    drawGauge();
+});
+
+// Initial Draw
+drawGauge();
+</script>
+</body>
+</html>
