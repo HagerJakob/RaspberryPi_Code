@@ -58,37 +58,44 @@ canvas {
 
 <div id="wrap" class="carbon w-[1280px] h-[400px] rounded-3xl shadow-2xl relative border border-gray-800 flex">
 
-    <!-- Left Info Boxes -->
-    <div class="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
-        <div>
-            <div class="text-gray-400 text-xs tracking-widest">OIL TEMP</div>
-            <div id="oil" class="text-cyan-400 neon-text text-2xl font-bold value-glow">60°C</div>
-        </div>
-        <div>
-            <div class="text-gray-400 text-xs tracking-widest">FUEL</div>
-            <div id="fuel" class="text-cyan-400 neon-text text-2xl font-bold value-glow">73%</div>
-        </div>
-        <div>
-            <div class="text-gray-400 text-xs tracking-widest">COOLANT</div>
-            <div id="temp" class="text-cyan-400 neon-text text-2xl font-bold value-glow">20°C</div>
-        </div>
-    </div>
+   <!-- Left Info Boxes + Downshift -->
+<div class="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
+    <!-- Downshift Symbol -->
+    <div id="downshift" class="text-red-500 text-4xl font-bold text-center" style="display:none;">⬇</div>
 
-    <!-- Right Info Boxes -->
-    <div class="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
-        <div>
-            <div class="text-gray-400 text-xs tracking-widest">BATTERY</div>
-            <div id="voltage" class="text-cyan-400 neon-text text-2xl font-bold value-glow">12.1V</div>
-        </div>
-        <div>
-            <div class="text-gray-400 text-xs tracking-widest">BOOST</div>
-            <div id="boost" class="text-cyan-400 neon-text text-2xl font-bold value-glow">1.1 bar</div>
-        </div>
-        <div>
-            <div class="text-gray-400 text-xs tracking-widest">OIL PRESS</div>
-            <div id="oilpress" class="text-cyan-400 neon-text text-2xl font-bold value-glow">0.3 bar</div>
-        </div>
+    <div>
+        <div class="text-gray-400 text-xs tracking-widest">OIL TEMP</div>
+        <div id="oil" class="text-cyan-400 neon-text text-2xl font-bold value-glow">60°C</div>
     </div>
+    <div>
+        <div class="text-gray-400 text-xs tracking-widest">FUEL</div>
+        <div id="fuel" class="text-cyan-400 neon-text text-2xl font-bold value-glow">73%</div>
+    </div>
+    <div>
+        <div class="text-gray-400 text-xs tracking-widest">COOLANT</div>
+        <div id="temp" class="text-cyan-400 neon-text text-2xl font-bold value-glow">20°C</div>
+    </div>
+</div>
+
+<!-- Right Info Boxes + Upshift -->
+<div class="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
+    <!-- Upshift Symbol -->
+    <div id="upshift" class="text-green-500 text-4xl font-bold text-center" style="display:none;">⬆</div>
+
+    <div>
+        <div class="text-gray-400 text-xs tracking-widest">BATTERY</div>
+        <div id="voltage" class="text-cyan-400 neon-text text-2xl font-bold value-glow">12.1V</div>
+    </div>
+    <div>
+        <div class="text-gray-400 text-xs tracking-widest">BOOST</div>
+        <div id="boost" class="text-cyan-400 neon-text text-2xl font-bold value-glow">1.1 bar</div>
+    </div>
+    <div>
+        <div class="text-gray-400 text-xs tracking-widest">OIL PRESS</div>
+        <div id="oilpress" class="text-cyan-400 neon-text text-2xl font-bold value-glow">0.3 bar</div>
+    </div>
+</div>
+
 
     <!-- Canvas Gauge -->
     <canvas id="gauge" width="1280" height="400" class="absolute left-0 top-0"></canvas>
@@ -239,11 +246,27 @@ function drawGauge(){
 const socket = io();
 
 socket.on('update', data => {
-    if(data.RPM!==undefined) rpm = parseInt(data.RPM);
-    if(data.SPEED!==undefined) speed = parseInt(data.SPEED);
-    if(data.COOLANT !== undefined) document.getElementById("temp").textContent = data.COOLANT; // <- NEU
+    if(data.RPM !== undefined) rpm = parseInt(data.RPM);
+    if(data.SPEED !== undefined) speed = parseInt(data.SPEED);
+    if(data.COOLANT !== undefined) document.getElementById("temp").textContent = data.COOLANT;
+
+    // Downshift links (RPM < 1000)
+    if(rpm < 1000){
+        document.getElementById("downshift").style.display = "block";
+    } else {
+        document.getElementById("downshift").style.display = "none";
+    }
+
+    // Upshift rechts (RPM > 6000)
+    if(rpm > 6000){
+        document.getElementById("upshift").style.display = "block";
+    } else {
+        document.getElementById("upshift").style.display = "none";
+    }
+
     drawGauge();
 });
+
 
 // Initial anzeigen
 drawGauge();
