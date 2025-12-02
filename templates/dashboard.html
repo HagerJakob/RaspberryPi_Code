@@ -1,76 +1,68 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>Racing Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <style>
-    body { margin:0; overflow:hidden; background:#000; font-family:Arial; color:#fff; }
-    #wrap {
-        width:1280px; height:400px; margin:0 auto; position:relative;
-        background:#111;
-        background-image: repeating-linear-gradient(45deg, #111, #111 2px, #222 2px, #222 6px),
-                         linear-gradient(to bottom, #000 0%, #111 100%);
-        border-radius:20px;
-        overflow:hidden;
-    }
-    .frame-overlay {
-        position:absolute; inset:0;
-        border-radius:40px;
-        box-shadow: inset 0 0 120px rgba(0,0,0,0.8);
-        pointer-events:none;
-    }
-    .sidebox {
-        position:absolute; top:40px; width:220px; height:320px;
-        display:flex; flex-direction:column; justify-content:space-between;
-        padding:15px; font-size:20px; opacity:0.9;
-    }
-    #left { left:40px; }
-    #right { right:-120px; }
-    .label { opacity:0.55; font-size:16px; }
-    .val   { font-size:26px; text-shadow:0 0 7px cyan; }
-    canvas#gauge { position:absolute; top:0; left:0; }
+/* Canvas bleibt individuell */
 </style>
 </head>
-<body>
-<div id="wrap">
+<body class="bg-black text-white overflow-hidden">
+<div id="wrap" class="relative w-[1280px] h-[400px] mx-auto rounded-3xl overflow-hidden bg-gradient-to-b from-neutral-900 to-black shadow-2xl">
     <canvas id="gauge" width="1280" height="400"></canvas>
-    <div class="frame-overlay"></div>
 
-    <div id="left" class="sidebox">
-        <div><div class="label">OIL TEMP</div><div class="val" id="oil">60</div></div>
-        <div><div class="label">FUEL</div><div class="val" id="fuel">73%</div></div>
-        <div><div class="label">COOLANT</div><div class="val" id="temp">20C</div></div>
+    <!-- LEFT BOX -->
+    <div class="absolute left-6 top-10 w-56 h-80 flex flex-col justify-between p-4 backdrop-blur-sm bg-white/5 rounded-xl shadow-inner border border-white/10">
+        <div>
+            <div class="text-sm opacity-50">OIL TEMP</div>
+            <div id="oil" class="text-2xl text-cyan-400 font-bold drop-shadow">60</div>
+        </div>
+        <div>
+            <div class="text-sm opacity-50">FUEL</div>
+            <div id="fuel" class="text-2xl text-cyan-400 font-bold drop-shadow">73%</div>
+        </div>
+        <div>
+            <div class="text-sm opacity-50">COOLANT</div>
+            <div id="temp" class="text-2xl text-cyan-400 font-bold drop-shadow">20C</div>
+        </div>
     </div>
 
-    <div id="right" class="sidebox">
-        <div><div class="label">BATTERY</div><div class="val" id="voltage">11,8V</div></div>
-        <div><div class="label">BOOST</div><div class="val" id="boost">2 bar</div></div>
-        <div><div class="label">OIL PRESS</div><div class="val" id="oilpress">0,3 bar</div></div>
+    <!-- RIGHT BOX -->
+    <div class="absolute right-6 top-10 w-56 h-80 flex flex-col justify-between p-4 backdrop-blur-sm bg-white/5 rounded-xl shadow-inner border border-white/10">
+        <div>
+            <div class="text-sm opacity-50">BATTERY</div>
+            <div id="voltage" class="text-2xl text-cyan-400 font-bold drop-shadow">11.8V</div>
+        </div>
+        <div>
+            <div class="text-sm opacity-50">BOOST</div>
+            <div id="boost" class="text-2xl text-cyan-400 font-bold drop-shadow">2 bar</div>
+        </div>
+        <div>
+            <div class="text-sm opacity-50">OIL PRESS</div>
+            <div id="oilpress" class="text-2xl text-cyan-400 font-bold drop-shadow">0.3 bar</div>
+        </div>
     </div>
 </div>
 
 <script>
 let speed=0, rpm=0, gear="N", temp=70;
 
-// Canvas Setup
 const c = document.getElementById("gauge");
 const ctx = c.getContext("2d");
 const cx=640, cy=400, rOuter=360, rInner=300;
 const start=Math.PI*1.1, end=Math.PI*1.9;
 
-// Zeichnen
 function drawGauge(){
     ctx.clearRect(0,0,c.width,c.height);
 
-    // Basis-RPM-Bogen
     ctx.beginPath();
     ctx.arc(cx, cy+50, rOuter, start, end);
-    ctx.strokeStyle="rgba(90,90,90,0.35)";
+    ctx.strokeStyle="rgba(100,100,100,0.3)";
     ctx.lineWidth=38;
     ctx.stroke();
 
-    // RPM-Bogen
     let rpmPercent = Math.min(rpm/10000,1);
     let rpmEnd = start + (end-start)*rpmPercent;
     ctx.beginPath();
@@ -79,7 +71,6 @@ function drawGauge(){
     ctx.lineWidth=38;
     ctx.stroke();
 
-    // Speed-Zeiger
     let sp = Math.min(speed/255,1);
     let ang = start + (end-start)*sp;
     ctx.beginPath();
@@ -89,20 +80,17 @@ function drawGauge(){
     ctx.lineWidth=4;
     ctx.stroke();
 
-    // Speed Text
-    ctx.font="120px Courier New";
+    ctx.font="120px 'Courier New'";
     ctx.textAlign="center";
     ctx.textBaseline="middle";
     ctx.fillStyle="cyan";
     ctx.fillText(speed, cx, cy-160);
 
-    // RPM Text
-    ctx.font="60px Courier New";
+    ctx.font="60px 'Courier New'";
     ctx.fillStyle="#d64cff";
     ctx.fillText(rpm, cx, cy-80);
 }
 
-// Socket.IO
 const socket = io();
 
 socket.on('update', data => {
@@ -110,12 +98,9 @@ socket.on('update', data => {
     if(data.SPEED!==undefined) speed = parseInt(data.SPEED);
     if(data.COOLANT!==undefined) temp = parseInt(data.COOLANT);
 
-    // Sidebox Updates
     document.getElementById("temp").textContent = temp + "C";
     drawGauge();
 });
-
-// Initial Draw
 drawGauge();
 </script>
 </body>
