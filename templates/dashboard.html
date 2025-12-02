@@ -196,25 +196,21 @@ function drawGauge(){
     ctx.stroke();
 
     // RPM Balken
-    let p = Math.min(rpm/8000,1); // jetzt max 8k
+    let p = Math.min(rpm/10000,1); // jetzt max 10k
     let rpmEnd = start + (end-start)*p;
 
     ctx.save();
     ctx.strokeStyle = rpmGrad;
     ctx.lineWidth = 45;
 
-    // leichter Glow nur wenn Balken aktiv
-    if(p>0){
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "#d64cff";
-    } else {
-        ctx.shadowBlur = 0;
-    }
+    // Glow entfernen
+    ctx.shadowBlur = 0;
 
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, start, rpmEnd);
     ctx.stroke();
     ctx.restore();
+
 
     // Speed Zeiger
     let sp = Math.min(speed/255,1);
