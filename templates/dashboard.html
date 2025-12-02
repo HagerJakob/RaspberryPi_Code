@@ -81,100 +81,108 @@ let speed=0, rpm=0;
 // Canvas Setup
 const c = document.getElementById("gauge");
 const ctx = c.getContext("2d");
-const cx=640, cy=380, rOuter=340, rInner=260;
+const cx=640, cy=380;
+const rOuter=340;   // großer Bogen (RPM)
+const rInner=260;   // Zeigerlänge
+
 const start=Math.PI*1.1, end=Math.PI*1.9;
 
 
-// -----------------------------------------
-// RPM-Skala (OBEN)
-// -----------------------------------------
+// -----------------------------
+// RPM SKALA (oben, außen)
+// -----------------------------
 function drawRpmScale() {
     ctx.save();
     ctx.lineWidth = 3;
-    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
     ctx.fillStyle = "white";
-    ctx.font = "16px Courier New";
+    ctx.font = "17px Courier New";
     ctx.textAlign = "center";
 
     for (let i=0; i<=10; i++) {
         let a = start + (end-start)*(i/10);
 
-        // Tick
-        let x1 = cx + Math.cos(a)*(rOuter-10);
-        let y1 = cy + Math.sin(a)*(rOuter-10);
-        let x2 = cx + Math.cos(a)*(rOuter-40);
-        let y2 = cy + Math.sin(a)*(rOuter-40);
+        // Tick außen
+        let x1 = cx + Math.cos(a)*(rOuter+5);
+        let y1 = cy + Math.sin(a)*(rOuter+5);
+
+        let x2 = cx + Math.cos(a)*(rOuter-35);
+        let y2 = cy + Math.sin(a)*(rOuter-35);
 
         ctx.beginPath();
         ctx.moveTo(x1,y1);
         ctx.lineTo(x2,y2);
         ctx.stroke();
 
-        // RPM Zahl über dem Balken
+        // RPM-Zahl (weit oben)
         ctx.fillText(
-            (i*1000),
-            cx + Math.cos(a)*(rOuter-70),
-            cy + Math.sin(a)*(rOuter-70)
+            i*1000,
+            cx + Math.cos(a)*(rOuter+35),
+            cy + Math.sin(a)*(rOuter+35)
         );
     }
+
     ctx.restore();
 }
 
 
-// -----------------------------------------
-// SPEED-Skala (UNTEN)
-// -----------------------------------------
+// -----------------------------
+// SPEED SKALA (unten, innen)
+// -----------------------------
 function drawSpeedScale() {
     ctx.save();
     ctx.lineWidth = 3;
-    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
     ctx.fillStyle = "white";
     ctx.font = "16px Courier New";
     ctx.textAlign = "center";
 
-    for (let i=0; i<=17; i++) { // 0..255 -> 15er Schritte
-        let sp = i / 17; 
-        let a = start + (end-start)*sp;
-        let val = Math.round(sp * 255);
+    // 0 – 255 → 17 Schritte → ~15er Steps
+    for (let i=0; i<=17; i++) {
+        let p = i / 17;
+        let a = start + (end-start)*p;
+        let val = Math.round(p * 255);
 
-        // Tick Position
-        let x1 = cx + Math.cos(a)*(rInner+20);
-        let y1 = cy + Math.sin(a)*(rInner+20);
+        // Tick näher am Zeiger (deutlich weiter innen als RPM Skala)
+        let x1 = cx + Math.cos(a)*(rInner+10);
+        let y1 = cy + Math.sin(a)*(rInner+10);
 
-        let x2 = cx + Math.cos(a)*(rInner+45);
-        let y2 = cy + Math.sin(a)*(rInner+45);
+        let x2 = cx + Math.cos(a)*(rInner+40);
+        let y2 = cy + Math.sin(a)*(rInner+40);
 
         ctx.beginPath();
         ctx.moveTo(x1,y1);
         ctx.lineTo(x2,y2);
         ctx.stroke();
 
-        // Speed Zahl unterhalb des Zeigers
+        // Speed Zahl unterhalb des Ticks
         ctx.fillText(
             val,
             cx + Math.cos(a)*(rInner+70),
             cy + Math.sin(a)*(rInner+70)
         );
     }
+
     ctx.restore();
 }
 
 
-// -----------------------------------------
+
+// -----------------------------
 // Hauptanzeige
-// -----------------------------------------
+// -----------------------------
 function drawGauge(){
     ctx.clearRect(0,0,c.width,c.height);
 
-    // Skalen
+    // Skalen zeichnen
     drawRpmScale();
     drawSpeedScale();
 
-    // Grauer Basisbogen
+    // Grauer Bogen
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, start, end);
-    ctx.strokeStyle="rgba(80,80,80,0.35)";
-    ctx.lineWidth=35;
+    ctx.strokeStyle="rgba(140,140,160,0.2)";
+    ctx.lineWidth=45;
     ctx.stroke();
 
     // RPM Balken
@@ -184,7 +192,7 @@ function drawGauge(){
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, start, rpmEnd);
     ctx.strokeStyle="#d64cff";
-    ctx.lineWidth=35;
+    ctx.lineWidth=45;
     ctx.stroke();
     
     // Speed Zeiger
@@ -195,11 +203,11 @@ function drawGauge(){
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(ang)*rInner, cy + Math.sin(ang)*rInner);
     ctx.strokeStyle="white";
-    ctx.lineWidth=5;
+    ctx.lineWidth=6;
     ctx.stroke();
 
-    // Speed Text (groß)
-    ctx.font="110px Courier New";
+    // Speed Zahl (groß)
+    ctx.font="120px Courier New";
     ctx.textAlign="center";
     ctx.textBaseline="middle";
     ctx.fillStyle="cyan";
@@ -208,7 +216,9 @@ function drawGauge(){
 
 
 
-// Socket.IO Live Updates
+// -----------------------------
+// Live Updates via Socket.IO
+// -----------------------------
 const socket = io();
 
 socket.on('update', data => {
@@ -217,9 +227,10 @@ socket.on('update', data => {
     drawGauge();
 });
 
-// Initial zeichnen
+// Initial anzeigen
 drawGauge();
 </script>
+
 
 
 </body>
