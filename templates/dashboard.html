@@ -14,7 +14,7 @@
         border-radius:20px;
         overflow:hidden;
     }
-    .frame-overlay {                                                                                                                                                                                                                                                                                                                                                        
+    .frame-overlay {
         position:absolute; inset:0;
         border-radius:40px;
         box-shadow: inset 0 0 120px rgba(0,0,0,0.8);
@@ -56,7 +56,7 @@ let speed=0, rpm=0, gear="N", temp=70;
 // Canvas Setup
 const c = document.getElementById("gauge");
 const ctx = c.getContext("2d");
-const cx=640, cy=400, rOuter=360, rInner=340;
+const cx=640, cy=400, rOuter=360, rInner=300;
 const start=Math.PI*1.1, end=Math.PI*1.9;
 
 // Zeichnen

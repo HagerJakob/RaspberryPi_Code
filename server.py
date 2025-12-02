@@ -37,7 +37,7 @@ def uart_task():
                             data_dict[k.strip()] = v.strip()
                     if data_dict:
                         socketio.emit('update', data_dict)  # push an Browser
-        socketio.sleep(0.005)  # Eventlet-kompatibles Sleep
+        socketio.sleep(0.01)  # Eventlet-kompatibles Sleep
 
 # Starte Hintergrundtask
 socketio.start_background_task(uart_task)
