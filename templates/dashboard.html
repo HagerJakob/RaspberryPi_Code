@@ -30,8 +30,10 @@ canvas {
 
 /* Side Boxes Styling */
 .side-box {
+    margin-top: 10px;
     background: rgba(0,0,0,0.55);
     border-left: 4px solid #0ff;
+    border-top: 4px solid #0ff;
     border-radius: 16px;
     padding: 14px 18px;
     display: flex;
@@ -220,7 +222,7 @@ function drawGauge(){
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(ang)*rInner, cy + Math.sin(ang)*rInner);
     ctx.strokeStyle="white";
-    ctx.lineWidth=6;
+    ctx.lineWidth=3;
     ctx.stroke();
 
     // Speed Zahl (groß)
@@ -239,6 +241,7 @@ const socket = io();
 socket.on('update', data => {
     if(data.RPM!==undefined) rpm = parseInt(data.RPM);
     if(data.SPEED!==undefined) speed = parseInt(data.SPEED);
+    if(data.COOLANT !== undefined) document.getElementById("temp").textContent = data.COOLANT; // <- NEU
     drawGauge();
 });
 
