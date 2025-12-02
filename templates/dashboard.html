@@ -4,87 +4,87 @@
 <meta charset="UTF-8" />
 <title>Racing Dashboard</title>
 
+<!-- TailwindCSS CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
+
+<!-- SocketIO -->
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 
 <style>
-/* Pechschwarzer Hintergrund, komplett clean */
-.carbon {
-    background-color: #000; /* pechschwarz */
-    position: relative;
-    overflow: hidden;
-}
+    /* Matt Carbon Background */
+    .carbon {
+        background: #0d0d0d;
+        background-image: 
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px),
+            linear-gradient(180deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
 
-/* Canvas */
-canvas {
-    image-rendering: optimizeSpeed;
-    image-rendering: crisp-edges;
-}
+    canvas {
+        image-rendering: optimizeSpeed;
+        image-rendering: crisp-edges;
+    }
 
-/* Neon Glow Text */
-.neon-text {
-    text-shadow: 0 0 8px rgba(0,255,255,0.7),
-                 0 0 16px rgba(0,255,255,0.5),
-                 0 0 24px rgba(0,255,255,0.3);
-}
+    /* Neon Glow Text */
+    .neon-text {
+        text-shadow: 0 0 6px rgba(0,255,255,0.7),
+                     0 0 12px rgba(0,255,255,0.5),
+                     0 0 18px rgba(0,255,255,0.3);
+    }
 
-/* Side Boxes Styling */
-.side-box {
-    background: rgba(0,0,0,0.55);
-    border-left: 4px solid #0ff;
-    border-radius: 16px;
-    padding: 14px 18px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    height: 90%;
-    backdrop-filter: blur(6px);
-    box-shadow: 0 0 12px rgba(0,255,255,0.2);
-}
+    .rpm-glow {
+        filter: drop-shadow(0 0 12px #d64cff);
+    }
 
-.value-glow:hover {
-    text-shadow: 0 0 12px #0ff,
-                 0 0 24px #0ff;
-    transform: scale(1.05);
-    transition: all 0.2s ease-in-out;
-}
+    /* Side Boxes Styling */
+    .side-box {
+        background: rgba(0,0,0,0.5);
+        border: 1px solid #333;
+        border-left: 4px solid #0ff;
+        border-radius: 12px;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        height: 90%;
+    }
 </style>
-
 </head>
 
 <body class="w-full h-full flex justify-center items-center">
 
-<div id="wrap" class="carbon w-[1280px] h-[400px] rounded-3xl shadow-2xl relative border border-gray-800 flex">
+<div id="wrap"
+    class="carbon w-[1280px] h-[400px] rounded-3xl shadow-xl relative overflow-hidden border border-gray-700 flex">
 
     <!-- Left Info Boxes -->
     <div class="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
         <div>
-            <div class="text-gray-400 text-xs tracking-widest">OIL TEMP</div>
-            <div id="oil" class="text-cyan-400 neon-text text-2xl font-bold value-glow">60°C</div>
+            <div class="text-gray-300 text-xs tracking-widest">OIL TEMP</div>
+            <div id="oil" class="text-cyan-400 neon-text text-2xl font-bold">60°C</div>
         </div>
         <div>
-            <div class="text-gray-400 text-xs tracking-widest">FUEL</div>
-            <div id="fuel" class="text-cyan-400 neon-text text-2xl font-bold value-glow">73%</div>
+            <div class="text-gray-300 text-xs tracking-widest">FUEL</div>
+            <div id="fuel" class="text-cyan-400 neon-text text-2xl font-bold">73%</div>
         </div>
         <div>
-            <div class="text-gray-400 text-xs tracking-widest">COOLANT</div>
-            <div id="temp" class="text-cyan-400 neon-text text-2xl font-bold value-glow">20°C</div>
+            <div class="text-gray-300 text-xs tracking-widest">COOLANT</div>
+            <div id="temp" class="text-cyan-400 neon-text text-2xl font-bold">20°C</div>
         </div>
     </div>
 
     <!-- Right Info Boxes -->
     <div class="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
         <div>
-            <div class="text-gray-400 text-xs tracking-widest">BATTERY</div>
-            <div id="voltage" class="text-cyan-400 neon-text text-2xl font-bold value-glow">12.1V</div>
+            <div class="text-gray-300 text-xs tracking-widest">BATTERY</div>
+            <div id="voltage" class="text-cyan-400 neon-text text-2xl font-bold">12.1V</div>
         </div>
         <div>
-            <div class="text-gray-400 text-xs tracking-widest">BOOST</div>
-            <div id="boost" class="text-cyan-400 neon-text text-2xl font-bold value-glow">1.1 bar</div>
+            <div class="text-gray-300 text-xs tracking-widest">BOOST</div>
+            <div id="boost" class="text-cyan-400 neon-text text-2xl font-bold">1.1 bar</div>
         </div>
         <div>
-            <div class="text-gray-400 text-xs tracking-widest">OIL PRESS</div>
-            <div id="oilpress" class="text-cyan-400 neon-text text-2xl font-bold value-glow">0.3 bar</div>
+            <div class="text-gray-300 text-xs tracking-widest">OIL PRESS</div>
+            <div id="oilpress" class="text-cyan-400 neon-text text-2xl font-bold">0.3 bar</div>
         </div>
     </div>
 
@@ -134,7 +134,7 @@ function drawRpmScale() {
 
         // RPM-Zahl (weit oben)
         ctx.fillText(
-            i,
+            i*1000,
             cx + Math.cos(a)*(rOuter+50),
             cy + Math.sin(a)*(rOuter+50)// Nach Außen(+) / Innen(-) verschieben
 
@@ -208,19 +208,11 @@ function drawGauge(){
     let p = Math.min(rpm/10000,1);
     let rpmEnd = start + (end-start)*p;
 
-    let grad = ctx.createLinearGradient(cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
-    grad.addColorStop(0, "#ff00ff"); // Magenta
-    grad.addColorStop(0.5, "#d64cff"); // Pink-Lila
-    grad.addColorStop(1, "#ff00ff"); // Magenta
-
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, start, rpmEnd);
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = 45;
-    ctx.shadowBlur = 25;
-    ctx.shadowColor = "#d64cff";
+    ctx.strokeStyle="#d64cff";
+    ctx.lineWidth=45;
     ctx.stroke();
-    ctx.shadowBlur = 0; // Reset Shadow
     
     // Speed Zeiger
     let sp = Math.min(speed/255,1);
@@ -230,14 +222,14 @@ function drawGauge(){
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(ang)*rInner, cy + Math.sin(ang)*rInner);
     ctx.strokeStyle="white";
-    ctx.lineWidth=4;
+    ctx.lineWidth=6;
     ctx.stroke();
 
     // Speed Zahl (groß)
     ctx.font = "small-caps 120px 'Verdana'";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "cyan";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillStyle="cyan";
     ctx.fillText(speed, cx, cy-140);
 }
 
