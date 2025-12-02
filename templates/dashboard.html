@@ -10,7 +10,7 @@
 <style>
 /* Pechschwarzer Hintergrund, komplett clean */
 .carbon {
-    background-color: #000; /* pechschwarz */
+    background-color: #000;
     position: relative;
     overflow: hidden;
 }
@@ -50,52 +50,62 @@ canvas {
     transform: scale(1.05);
     transition: all 0.2s ease-in-out;
 }
-</style>
 
+/* Shift Pfeile Styling */
+.shift-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 4rem;
+    font-weight: bold;
+    text-align: center;
+    z-index: 10;
+    user-select: none;
+}
+#downshift { left: -60px; color: red; display: none; }
+#upshift   { right: -60px; color: lime; display: none; }
+</style>
 </head>
 
 <body class="w-full h-full flex justify-center items-center">
 
 <div id="wrap" class="carbon w-[1280px] h-[400px] rounded-3xl shadow-2xl relative border border-gray-800 flex">
 
-   <!-- Left Info Boxes + Downshift -->
-<div class="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
-    <!-- Downshift Symbol -->
-    <div id="downshift" class="text-red-500 text-4xl font-bold text-center" style="display:none;">⬇</div>
+    <!-- Left Info Boxes -->
+    <div class="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
+        <div>
+            <div class="text-gray-400 text-xs tracking-widest">OIL TEMP</div>
+            <div id="oil" class="text-cyan-400 neon-text text-2xl font-bold value-glow">60°C</div>
+        </div>
+        <div>
+            <div class="text-gray-400 text-xs tracking-widest">FUEL</div>
+            <div id="fuel" class="text-cyan-400 neon-text text-2xl font-bold value-glow">73%</div>
+        </div>
+        <div>
+            <div class="text-gray-400 text-xs tracking-widest">COOLANT</div>
+            <div id="temp" class="text-cyan-400 neon-text text-2xl font-bold value-glow">20°C</div>
+        </div>
+    </div>
 
-    <div>
-        <div class="text-gray-400 text-xs tracking-widest">OIL TEMP</div>
-        <div id="oil" class="text-cyan-400 neon-text text-2xl font-bold value-glow">60°C</div>
+    <!-- Right Info Boxes -->
+    <div class="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
+        <div>
+            <div class="text-gray-400 text-xs tracking-widest">BATTERY</div>
+            <div id="voltage" class="text-cyan-400 neon-text text-2xl font-bold value-glow">12.1V</div>
+        </div>
+        <div>
+            <div class="text-gray-400 text-xs tracking-widest">BOOST</div>
+            <div id="boost" class="text-cyan-400 neon-text text-2xl font-bold value-glow">1.1 bar</div>
+        </div>
+        <div>
+            <div class="text-gray-400 text-xs tracking-widest">OIL PRESS</div>
+            <div id="oilpress" class="text-cyan-400 neon-text text-2xl font-bold value-glow">0.3 bar</div>
+        </div>
     </div>
-    <div>
-        <div class="text-gray-400 text-xs tracking-widest">FUEL</div>
-        <div id="fuel" class="text-cyan-400 neon-text text-2xl font-bold value-glow">73%</div>
-    </div>
-    <div>
-        <div class="text-gray-400 text-xs tracking-widest">COOLANT</div>
-        <div id="temp" class="text-cyan-400 neon-text text-2xl font-bold value-glow">20°C</div>
-    </div>
-</div>
 
-<!-- Right Info Boxes + Upshift -->
-<div class="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
-    <!-- Upshift Symbol -->
-    <div id="upshift" class="text-green-500 text-4xl font-bold text-center" style="display:none;">⬆</div>
-
-    <div>
-        <div class="text-gray-400 text-xs tracking-widest">BATTERY</div>
-        <div id="voltage" class="text-cyan-400 neon-text text-2xl font-bold value-glow">12.1V</div>
-    </div>
-    <div>
-        <div class="text-gray-400 text-xs tracking-widest">BOOST</div>
-        <div id="boost" class="text-cyan-400 neon-text text-2xl font-bold value-glow">1.1 bar</div>
-    </div>
-    <div>
-        <div class="text-gray-400 text-xs tracking-widest">OIL PRESS</div>
-        <div id="oilpress" class="text-cyan-400 neon-text text-2xl font-bold value-glow">0.3 bar</div>
-    </div>
-</div>
-
+    <!-- Shift Pfeile -->
+    <div id="downshift" class="shift-arrow">⬇</div>
+    <div id="upshift" class="shift-arrow">⬆</div>
 
     <!-- Canvas Gauge -->
     <canvas id="gauge" width="1280" height="400" class="absolute left-0 top-0"></canvas>
@@ -113,9 +123,7 @@ const rOuter=320;   // großer Bogen (RPM)
 const rInner=250;   // Zeigerlänge
 const start=Math.PI*1.05, end=Math.PI*1.95;
 
-// -----------------------------
-// RPM Gradient einmal erstellen
-// -----------------------------
+// RPM Gradient
 const rpmGrad = ctx.createLinearGradient(cx-rOuter, cy-rOuter, cx+rOuter, cy+rOuter);
 rpmGrad.addColorStop(0, "#ff00ff");
 rpmGrad.addColorStop(0.5, "#d64cff");
@@ -133,13 +141,10 @@ function drawRpmScale() {
     ctx.textAlign = "center";
 
     // nur bis 8k RPM
-    for (let i=0; i<=10; i++) {
-        let a = start + (end-start)*(i/10);
-
-        // Tick außen
+    for (let i=0; i<=8; i++) {
+        let a = start + (end-start)*(i/8);
         let x1 = cx + Math.cos(a)*(rOuter+15);
         let y1 = cy + Math.sin(a)*(rOuter+15);
-
         let x2 = cx + Math.cos(a)*(rOuter+40);
         let y2 = cy + Math.sin(a)*(rOuter+40);
 
@@ -148,7 +153,6 @@ function drawRpmScale() {
         ctx.lineTo(x2,y2);
         ctx.stroke();
 
-        // RPM-Zahl
         ctx.fillText(i, cx + Math.cos(a)*(rOuter+50), cy + Math.sin(a)*(rOuter+50));
     }
 
@@ -170,10 +174,8 @@ function drawSpeedScale() {
         let p = i / 17;
         let a = start + (end-start)*p;
         let val = Math.round(p * 255);
-
         let x1 = cx + Math.cos(a)*(rInner+55);
         let y1 = cy + Math.sin(a)*(rInner+55);
-
         let x2 = cx + Math.cos(a)*(rInner+30);
         let y2 = cy + Math.sin(a)*(rInner+30);
 
@@ -205,21 +207,17 @@ function drawGauge(){
     ctx.stroke();
 
     // RPM Balken
-    let p = Math.min(rpm/10000,1); // jetzt max 10k
+    let p = Math.min(rpm/8000,1); // max 8k RPM
     let rpmEnd = start + (end-start)*p;
 
     ctx.save();
     ctx.strokeStyle = rpmGrad;
     ctx.lineWidth = 45;
-
-    // Glow entfernen
-    ctx.shadowBlur = 0;
-
+    ctx.shadowBlur = 0; // Glow entfernt
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, start, rpmEnd);
     ctx.stroke();
     ctx.restore();
-
 
     // Speed Zeiger
     let sp = Math.min(speed/255,1);
@@ -250,23 +248,14 @@ socket.on('update', data => {
     if(data.SPEED !== undefined) speed = parseInt(data.SPEED);
     if(data.COOLANT !== undefined) document.getElementById("temp").textContent = data.COOLANT;
 
-    // Downshift links (RPM < 1000)
-    if(rpm < 1000){
-        document.getElementById("downshift").style.display = "block";
-    } else {
-        document.getElementById("downshift").style.display = "none";
-    }
+    // Downshift (links) bei RPM < 1000
+    document.getElementById("downshift").style.display = (rpm < 1000) ? "block" : "none";
 
-    // Upshift rechts (RPM > 6000)
-    if(rpm > 6000){
-        document.getElementById("upshift").style.display = "block";
-    } else {
-        document.getElementById("upshift").style.display = "none";
-    }
+    // Upshift (rechts) bei RPM > 6000
+    document.getElementById("upshift").style.display = (rpm > 6000) ? "block" : "none";
 
     drawGauge();
 });
-
 
 // Initial anzeigen
 drawGauge();
