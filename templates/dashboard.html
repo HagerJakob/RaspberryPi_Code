@@ -10,7 +10,7 @@
 <style>
 /* Pechschwarzer Hintergrund, komplett clean */
 .carbon {
-    background-color: #000;
+    background-color: #000; /* pechschwarz */
     position: relative;
     overflow: hidden;
 }
@@ -50,7 +50,6 @@ canvas {
     transform: scale(1.05);
     transition: all 0.2s ease-in-out;
 }
-
 /* Shift Pfeile Styling */
 .shift-arrow {
     position: absolute;
@@ -65,13 +64,14 @@ canvas {
 #downshift { left: -60px; color: red; display: none; }
 #upshift   { right: -60px; color: lime; display: none; }
 </style>
+
 </head>
 
 <body class="w-full h-full flex justify-center items-center">
 
 <div id="wrap" class="carbon w-[1280px] h-[400px] rounded-3xl shadow-2xl relative border border-gray-800 flex">
 
-    <!-- Left Info Boxes -->
+   <!-- Left Info Boxes -->
     <div class="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box text-white">
         <div>
             <div class="text-gray-400 text-xs tracking-widest">OIL TEMP</div>
@@ -123,7 +123,9 @@ const rOuter=320;   // großer Bogen (RPM)
 const rInner=250;   // Zeigerlänge
 const start=Math.PI*1.05, end=Math.PI*1.95;
 
-// RPM Gradient
+// -----------------------------
+// RPM Gradient einmal erstellen
+// -----------------------------
 const rpmGrad = ctx.createLinearGradient(cx-rOuter, cy-rOuter, cx+rOuter, cy+rOuter);
 rpmGrad.addColorStop(0, "#ff00ff");
 rpmGrad.addColorStop(0.5, "#d64cff");
@@ -143,8 +145,11 @@ function drawRpmScale() {
     // nur bis 8k RPM
     for (let i=0; i<=8; i++) {
         let a = start + (end-start)*(i/8);
+
+        // Tick außen
         let x1 = cx + Math.cos(a)*(rOuter+15);
         let y1 = cy + Math.sin(a)*(rOuter+15);
+
         let x2 = cx + Math.cos(a)*(rOuter+40);
         let y2 = cy + Math.sin(a)*(rOuter+40);
 
@@ -153,6 +158,7 @@ function drawRpmScale() {
         ctx.lineTo(x2,y2);
         ctx.stroke();
 
+        // RPM-Zahl
         ctx.fillText(i, cx + Math.cos(a)*(rOuter+50), cy + Math.sin(a)*(rOuter+50));
     }
 
@@ -174,8 +180,10 @@ function drawSpeedScale() {
         let p = i / 17;
         let a = start + (end-start)*p;
         let val = Math.round(p * 255);
+
         let x1 = cx + Math.cos(a)*(rInner+55);
         let y1 = cy + Math.sin(a)*(rInner+55);
+
         let x2 = cx + Math.cos(a)*(rInner+30);
         let y2 = cy + Math.sin(a)*(rInner+30);
 
@@ -207,17 +215,21 @@ function drawGauge(){
     ctx.stroke();
 
     // RPM Balken
-    let p = Math.min(rpm/8000,1); // max 8k RPM
+    let p = Math.min(rpm/8000,1); // jetzt max 8k
     let rpmEnd = start + (end-start)*p;
 
     ctx.save();
     ctx.strokeStyle = rpmGrad;
     ctx.lineWidth = 45;
-    ctx.shadowBlur = 0; // Glow entfernt
+
+    // Glow entfernen
+    ctx.shadowBlur = 0;
+
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, start, rpmEnd);
     ctx.stroke();
     ctx.restore();
+
 
     // Speed Zeiger
     let sp = Math.min(speed/255,1);
@@ -248,14 +260,23 @@ socket.on('update', data => {
     if(data.SPEED !== undefined) speed = parseInt(data.SPEED);
     if(data.COOLANT !== undefined) document.getElementById("temp").textContent = data.COOLANT;
 
-    // Downshift (links) bei RPM < 1000
-    document.getElementById("downshift").style.display = (rpm < 1000) ? "block" : "none";
+    // Downshift links (RPM < 1000)
+    if(rpm < 1000){
+        document.getElementById("downshift").style.display = "block";
+    } else {
+        document.getElementById("downshift").style.display = "none";
+    }
 
-    // Upshift (rechts) bei RPM > 6000
-    document.getElementById("upshift").style.display = (rpm > 6000) ? "block" : "none";
+    // Upshift rechts (RPM > 6000)
+    if(rpm > 6000){
+        document.getElementById("upshift").style.display = "block";
+    } else {
+        document.getElementById("upshift").style.display = "none";
+    }
 
     drawGauge();
 });
+
 
 // Initial anzeigen
 drawGauge();
