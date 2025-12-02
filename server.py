@@ -1,7 +1,9 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import serial
+import sqlite3
 import time
+from datetime import datetime
 
 SERIAL_PORT = '/dev/serial0'
 BAUDRATE = 115200
@@ -9,6 +11,27 @@ BAUDRATE = 115200
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# -----------------------------
+# SQLite Datenbank Setup
+# -----------------------------
+DB_FILE = "obd_data.db"
+
+conn = sqlite3.connect(DB_FILE)
+c = conn.cursor()
+c.execute("""
+    CREATE TABLE IF NOT EXISTS obd (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
+        key TEXT,
+        value TEXT
+    )
+""")
+conn.commit()
+conn.close()
+
+# -----------------------------
+# UART Verbindung
+# -----------------------------
 try:
     ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.05)
     print(f"UART verbunden: {SERIAL_PORT}")
@@ -20,7 +43,9 @@ except Exception as e:
 def index():
     return render_template("dashboard.html")
 
-# Eventlet-kompatible Hintergrundtask
+# -----------------------------
+# UART Hintergrundtask
+# -----------------------------
 def uart_task():
     buffer = ""
     while True:
@@ -36,10 +61,24 @@ def uart_task():
                             k,v = part.split(':',1)
                             data_dict[k.strip()] = v.strip()
                     if data_dict:
-                        socketio.emit('update', data_dict)  # push an Browser
+                        # Push an Browser
+                        socketio.emit('update', data_dict)
+
+                        # In Datenbank speichern
+                        conn = sqlite3.connect(DB_FILE)
+                        c = conn.cursor()
+                        timestamp = datetime.now().isoformat()
+                        for k,v in data_dict.items():
+                            c.execute("INSERT INTO obd (timestamp, key, value) VALUES (?, ?, ?)",
+                                      (timestamp, k, v))
+                        conn.commit()
+                        conn.close()
+
         socketio.sleep(0.01)  # Eventlet-kompatibles Sleep
 
-# Starte Hintergrundtask
+# -----------------------------
+# Hintergrundtask starten
+# -----------------------------
 socketio.start_background_task(uart_task)
 
 if __name__ == "__main__":
