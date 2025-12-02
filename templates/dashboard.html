@@ -53,16 +53,28 @@ canvas {
 /* Shift Pfeile Styling */
 .shift-arrow {
     position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
     font-size: 4rem;
     font-weight: bold;
     text-align: center;
     z-index: 10;
     user-select: none;
 }
-#downshift { left: 20px; color: red; display: none; }
-#upshift   { right: 20px; color: lime; display: none; }
+
+/* Downshift links oben etwas höher */
+#downshift {
+    left: -20px;      /* weiter links */
+    top: 35%;         /* etwas nach oben verschoben */
+    color: red;
+    display: none;
+}
+
+/* Upshift rechts oben etwas höher */
+#upshift {
+    right: -20px;     /* weiter rechts */
+    top: 35%;         /* etwas nach oben verschoben */
+    color: lime;
+    display: none;
+}
 </style>
 
 </head>
