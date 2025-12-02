@@ -51,29 +51,30 @@ canvas {
 }
 
 .shift-arrow {
-    position: absolute; /* statt fixed */
-    font-size: 4rem;
+    position: absolute;   /* Bleibt im Wrap */
+    font-size: 3.5rem;
     font-weight: bold;
-    text-align: center;
-    z-index: 10;
+    z-index: 20;
     user-select: none;
+    pointer-events: none; /* blockiert nichts */
+    transform: translateY(-50%); /* echte Vertikalzentrierung */
+    top: 50%;              /* Mitte */
 }
 
-/* Downshift links außen */
+/* Links – zwischen linker Box und Gauge */
 #downshift {
-    left: -60px;   /* außerhalb der Box, aber innerhalb des Dashboards */
-    top: 30%;      /* etwas höher */
+    left: 120px;  /* perfekt zwischen Box und Bogen */
     color: red;
     display: none;
 }
 
-/* Upshift rechts außen */
+/* Rechts – zwischen rechter Box und Gauge */
 #upshift {
-    right: -60px;  /* außerhalb der Box, aber innerhalb des Dashboards */
-    top: 30%;      /* etwas höher */
+    right: 120px; /* perfekt zwischen Box und Bogen */
     color: lime;
     display: none;
 }
+
 
 </style>
 
@@ -101,6 +102,7 @@ canvas {
             <div id="temp" class="text-cyan-400 neon-text text-2xl font-bold value-glow">20°C</div>
         </div>
     </div>
+    
     <div id="downshift" class="shift-arrow">⬇</div>
     <div id="upshift" class="shift-arrow">⬆</div>
 
