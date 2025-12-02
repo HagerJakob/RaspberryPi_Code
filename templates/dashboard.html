@@ -63,125 +63,60 @@ const start=Math.PI*1.1, end=Math.PI*1.9;
 function drawGauge(){
     ctx.clearRect(0,0,c.width,c.height);
 
-    // Basis RPM-Bogen
+    // Basis-RPM-Bogen
     ctx.beginPath();
     ctx.arc(cx, cy+50, rOuter, start, end);
     ctx.strokeStyle="rgba(90,90,90,0.35)";
     ctx.lineWidth=38;
     ctx.stroke();
 
-    // RPM-Bogen farbig
+    // RPM-Bogen
     let rpmPercent = Math.min(rpm/10000,1);
     let rpmEnd = start + (end-start)*rpmPercent;
-    const grad = ctx.createLinearGradient(0,0,1280,0);
-    grad.addColorStop(0,"#a000ff");
-    grad.addColorStop(0.6,"#d64cff");
-    grad.addColorStop(1,"#ff4df2");
     ctx.beginPath();
     ctx.arc(cx, cy+50, rOuter, start, rpmEnd);
-    ctx.strokeStyle=grad;
+    ctx.strokeStyle="#d64cff";
     ctx.lineWidth=38;
     ctx.stroke();
 
-    // RPM Skala außen
-    ctx.save();
-    ctx.font="16px Arial";
-    ctx.fillStyle="white";
-    ctx.textAlign="center";
-    ctx.textBaseline="middle";
-    for(let r=0; r<=10000; r+=1000){
-        let t=r/10000;
-        let a=start + (end-start)*t;
-        let x1=cx + Math.cos(a)*(rOuter+10);
-        let y1=cy+50 + Math.sin(a)*(rOuter+10);
-        let x2=cx + Math.cos(a)*(rOuter+30);
-        let y2=cy+50 + Math.sin(a)*(rOuter+30);
-        ctx.beginPath();
-        ctx.moveTo(x1,y1);
-        ctx.lineTo(x2,y2);
-        ctx.strokeStyle="#d64cff";
-        ctx.lineWidth=2;
-        ctx.stroke();
-        ctx.fillText(r, cx + Math.cos(a)*(rOuter+50), cy+50 + Math.sin(a)*(rOuter+50));
-    }
-    ctx.restore();
-
-    // Speed Zeiger
+    // Speed-Zeiger
     let sp = Math.min(speed/255,1);
     let ang = start + (end-start)*sp;
     ctx.beginPath();
     ctx.moveTo(cx, cy+60);
-    ctx.lineTo(cx + Math.cos(ang)*rInner, cy+60 + Math.sin(ang)*rInner);
+    ctx.lineTo(cx + Math.cos(ang)*rInner, cy + 60 + Math.sin(ang)*rInner);
     ctx.strokeStyle="white";
     ctx.lineWidth=4;
-    ctx.shadowBlur=18;
-    ctx.shadowColor="white";
     ctx.stroke();
-    ctx.shadowBlur=0;
-
-    // Speed Skala innen
-    ctx.save();
-    ctx.strokeStyle="cyan";
-    ctx.fillStyle="white";
-    ctx.lineWidth=2;
-    ctx.font="14px Arial";
-    for(let s=0; s<=255; s+=25){
-        let t=s/255;
-        let a=start + (end-start)*t;
-        let x1=cx + Math.cos(a)*(rInner-10);
-        let y1=cy+60 + Math.sin(a)*(rInner-10);
-        let x2=cx + Math.cos(a)*(rInner-30);
-        let y2=cy+60 + Math.sin(a)*(rInner-30);
-        ctx.beginPath();
-        ctx.moveTo(x1,y1);
-        ctx.lineTo(x2,y2);
-        ctx.stroke();
-        ctx.fillText(s, cx + Math.cos(a)*(rInner-45), cy+60 + Math.sin(a)*(rInner-45));
-    }
-    ctx.restore();
 
     // Speed Text
     ctx.font="120px Courier New";
     ctx.textAlign="center";
     ctx.textBaseline="middle";
     ctx.fillStyle="cyan";
-    ctx.shadowBlur=18;
-    ctx.shadowColor="cyan";
     ctx.fillText(speed, cx, cy-160);
-    ctx.shadowBlur=0;
 
-    // RPM Text (Downshift/UpShift)
+    // RPM Text
     ctx.font="60px Courier New";
     ctx.fillStyle="#d64cff";
-    let rpmText="";
-    if(rpm<1000) rpmText="DOWNSHIFT";
-    else if(rpm>5000) rpmText="UPSHIFT";
-    ctx.fillText(rpmText, cx, cy-80);
+    ctx.fillText(rpm, cx, cy-80);
 }
 
-// Initiales Rendering
-drawGauge();
-function updateDigital(){
-    document.getElementById("oil").textContent=temp;
-    document.getElementById("fuel").textContent="73%"; 
-    document.getElementById("temp").textContent=temp+"C";
-    document.getElementById("voltage").textContent="11,8V";
-    document.getElementById("boost").textContent="2 bar";
-    document.getElementById("oilpress").textContent="0,3 bar";
-}
-updateDigital();
-
-// Socket.IO für Live-Updates
+// Socket.IO
 const socket = io();
-socket.on('update', data=>{
-    if(data.RPM!==undefined) rpm=parseInt(data.RPM);
-    if(data.SPEED!==undefined) speed=parseInt(data.SPEED);
-    if(data.COOLANT!==undefined) temp=parseInt(data.COOLANT);
 
-    document.getElementById("temp").textContent=temp+"C";
+socket.on('update', data => {
+    if(data.RPM!==undefined) rpm = parseInt(data.RPM);
+    if(data.SPEED!==undefined) speed = parseInt(data.SPEED);
+    if(data.COOLANT!==undefined) temp = parseInt(data.COOLANT);
 
+    // Sidebox Updates
+    document.getElementById("temp").textContent = temp + "C";
     drawGauge();
 });
+
+// Initial Draw
+drawGauge();
 </script>
 </body>
 </html>
