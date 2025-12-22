@@ -1,0 +1,62 @@
+.carbon {
+  background-color: #000;
+  position: relative;
+}
+
+canvas {
+  image-rendering: optimizeSpeed;
+  image-rendering: crisp-edges;
+}
+
+.neon-text {
+  text-shadow: 0 0 8px rgba(0,255,255,0.7),
+               0 0 16px rgba(0,255,255,0.5),
+               0 0 24px rgba(0,255,255,0.3);
+}
+
+.side-box {
+  margin-top: 10px;
+  background: rgba(0,0,0,0.55);
+  border-left: 4px solid #0ff;
+  border-top: 4px solid #0ff;
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  height: 90%;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 12px rgba(0,255,255,0.2);
+}
+
+.label {
+  color: #bbb;
+  font-size: 0.7rem;
+  letter-spacing: 0.2rem;
+}
+
+.value {
+  color: #0ff;
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.shift-arrow {
+  position: absolute;
+  font-size: 3.5rem;
+  font-weight: bold;
+  z-index: 20;
+  pointer-events: none;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.shift-arrow.left {
+  left: 220px;
+  color: red;
+}
+
+.shift-arrow.right {
+  right: 240px;
+  color: lime;
+}
