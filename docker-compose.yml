@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  sqlite:
+    image: hibitdev/sqlite:latest
+    container_name: sqlite
+    hostname: sqlite.hibit
+    ports:
+      - "8191:8191"
+    volumes:
+      - ./sqlite:/db
+      - ./backend/db:/db/schema
+    command: ["tail", "-f", "/dev/null"]  # Keeps the container running
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - ./sqlite:/db
+    environment:
+      - DATABASE_URL=sqlite:////db/app.db
+    depends_on:
+      - sqlite
+    networks:
+      - app-network
+    command: python main.py
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    command: npm run dev -- --host #CUSTOM_COMMAND
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  sqlite:
+    driver: local
