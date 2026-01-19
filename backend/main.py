@@ -25,9 +25,11 @@ def init_uart():
     try:
         ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.05)
         logger.info(f"UART verbunden: {SERIAL_PORT}")
+        return True
     except Exception as e:
         logger.error(f"UART Fehler - OBD-Daten nicht verfügbar: {e}")
-        raise e
+        ser = None
+        return False
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
