@@ -144,17 +144,11 @@ export function dashboard() {
         const oldSpeed = speed;
         
         if (data.RPM !== undefined) rpm = parseInt(data.RPM);
-        if (data.rpm !== undefined) rpm = parseInt(data.rpm);
         if (data.SPEED !== undefined) speed = parseInt(data.SPEED);
-        if (data.speed !== undefined) speed = parseInt(data.speed);
         
         if (data.COOLANT !== undefined) {
           const el = document.getElementById("temp");
           if (el) el.textContent = data.COOLANT;
-        }
-        if (data.coolant !== undefined) {
-          const el = document.getElementById("temp");
-          if (el) el.textContent = data.coolant;
         }
 
         // Downshift & Upshift indicators
