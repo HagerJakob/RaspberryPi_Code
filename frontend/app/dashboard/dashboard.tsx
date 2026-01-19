@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import backgroundImage from "../background/background.png";
+import backgroundImage from "../background/background.jpg";
 
 export default function dashboard() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
