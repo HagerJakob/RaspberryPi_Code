@@ -96,7 +96,7 @@ export function dashboard() {
       const p = Math.min(rpm / 8000, 1);
       const rpmEnd = start + (end - start) * p;
       ctx.save();
-      ctx.strokeStyle = rpmGrad;
+      ctx.strokeStyle = "#FF8C2B";
       ctx.lineWidth = 45;
       ctx.shadowColor = "rgba(255, 122, 24, 0.3)";
       ctx.shadowBlur = 8;
@@ -268,16 +268,16 @@ export function dashboard() {
         
         .side-box { 
           margin-top: 10px; 
-          background: linear-gradient(135deg, rgba(10, 11, 15, 0.9), rgba(5, 6, 7, 0.9)); 
-          border: 1px solid rgba(255, 140, 43, 0.25); 
-          border-radius: 12px; 
-          padding: 16px 20px; 
           display: flex; 
           flex-direction: column; 
           justify-content: space-around; 
           height: 90%; 
-          backdrop-filter: blur(12px); 
-          box-shadow: 0 0 20px rgba(255, 122, 24, 0.1), inset 0 0 15px rgba(255, 140, 43, 0.05); 
+        }
+        
+        .data-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
         }
         
         .value-glow { 
@@ -331,17 +331,17 @@ export function dashboard() {
       <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(255, 140, 43, 0.2)" }}>
 
         <div className="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box">
-          <div className="space-y-1">
+          <div className="data-item space-y-1">
             <div className="label-text">OIL TEMP</div>
             <div id="oil" className="neon-text text-3xl font-bold value-glow">60°C</div>
             <div id="oil-bar" className="value-bar"></div>
           </div>
-          <div className="space-y-1">
+          <div className="data-item space-y-1">
             <div className="label-text">FUEL</div>
             <div id="fuel" className="neon-text text-3xl font-bold value-glow">73%</div>
             <div id="fuel-bar" className="value-bar"></div>
           </div>
-          <div className="space-y-1">
+          <div className="data-item space-y-1">
             <div className="label-text">COOLANT</div>
             <div id="temp" className="neon-text text-3xl font-bold value-glow">20°C</div>
             <div id="temp-bar" className="value-bar"></div>
@@ -352,17 +352,17 @@ export function dashboard() {
         <div id="upshift" className="shift-arrow">⬆</div>
 
         <div className="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box">
-          <div className="space-y-1">
+          <div className="data-item space-y-1">
             <div className="label-text">BATTERY</div>
             <div id="voltage" className="neon-text text-3xl font-bold value-glow">12.1V</div>
             <div id="voltage-bar" className="value-bar"></div>
           </div>
-          <div className="space-y-1">
+          <div className="data-item space-y-1">
             <div className="label-text">BOOST</div>
             <div id="boost" className="neon-text text-3xl font-bold value-glow">1.1 bar</div>
             <div id="boost-bar" className="value-bar"></div>
           </div>
-          <div className="space-y-1">
+          <div className="data-item space-y-1">
             <div className="label-text">OIL PRESS</div>
             <div id="oilpress" className="neon-text text-3xl font-bold value-glow">0.3 bar</div>
             <div id="oilpress-bar" className="value-bar"></div>
