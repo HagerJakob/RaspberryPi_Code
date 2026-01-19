@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import backgroundImage from "../background/background.png";
 
 export function dashboard() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -21,15 +20,15 @@ export function dashboard() {
     const end = Math.PI * 1.95;
 
     const rpmGrad = ctx.createLinearGradient(cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
-    rpmGrad.addColorStop(0, "#ff0000");
-    rpmGrad.addColorStop(0.5, "#ff3333");
-    rpmGrad.addColorStop(1, "#ff6600");
+    rpmGrad.addColorStop(0, "#FF8C2B");
+    rpmGrad.addColorStop(0.5, "#FF7A18");
+    rpmGrad.addColorStop(1, "#E6761F");
 
     function drawRpmScale() {
       ctx.save();
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(255,51,51,0.8)";
-      ctx.fillStyle = "rgba(255,51,51,0.9)";
+      ctx.strokeStyle = "rgba(255, 140, 43, 0.6)";
+      ctx.fillStyle = "#EDEFF2";
       ctx.font = "bold 18px 'Arial'";
       ctx.textAlign = "center";
 
@@ -43,8 +42,8 @@ export function dashboard() {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
-        ctx.shadowColor = "rgba(255,0,0,0.6)";
-        ctx.shadowBlur = 5;
+        ctx.shadowColor = "rgba(255, 140, 43, 0.3)";
+        ctx.shadowBlur = 3;
         ctx.fillText(String(i), cx + Math.cos(a) * (rOuter + 55), cy + Math.sin(a) * (rOuter + 55));
         ctx.shadowBlur = 0;
       }
@@ -55,8 +54,8 @@ export function dashboard() {
     function drawSpeedScale() {
       ctx.save();
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(255,51,51,0.7)";
-      ctx.fillStyle = "rgba(255,51,51,0.85)";
+      ctx.strokeStyle = "rgba(255, 140, 43, 0.5)";
+      ctx.fillStyle = "#9AA3AE";
       ctx.font = "bold 15px 'Arial'";
       ctx.textAlign = "center";
 
@@ -72,8 +71,8 @@ export function dashboard() {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
-        ctx.shadowColor = "rgba(255,0,0,0.5)";
-        ctx.shadowBlur = 4;
+        ctx.shadowColor = "rgba(255, 140, 43, 0.2)";
+        ctx.shadowBlur = 2;
         ctx.fillText(String(val), cx + Math.cos(a) * (rInner + 11), cy + Math.sin(a) * (rInner + 11));
         ctx.shadowBlur = 0;
       }
@@ -89,7 +88,7 @@ export function dashboard() {
       // Background circle
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, end);
-      ctx.strokeStyle = "rgba(255,51,51,0.15)";
+      ctx.strokeStyle = "rgba(42, 47, 54, 0.5)";
       ctx.lineWidth = 45;
       ctx.stroke();
 
@@ -99,8 +98,8 @@ export function dashboard() {
       ctx.save();
       ctx.strokeStyle = rpmGrad;
       ctx.lineWidth = 45;
-      ctx.shadowColor = "rgba(255,0,0,0.5)";
-      ctx.shadowBlur = 10;
+      ctx.shadowColor = "rgba(255, 122, 24, 0.3)";
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, rpmEnd);
       ctx.stroke();
@@ -112,19 +111,19 @@ export function dashboard() {
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(ang) * rInner, cy + Math.sin(ang) * rInner);
-      ctx.strokeStyle = "rgba(255,51,51,0.95)";
-      ctx.lineWidth = 4;
-      ctx.shadowColor = "rgba(255,0,0,0.7)";
-      ctx.shadowBlur = 8;
+      ctx.strokeStyle = "#FF7A18";
+      ctx.lineWidth = 5;
+      ctx.shadowColor = "rgba(255, 122, 24, 0.5)";
+      ctx.shadowBlur = 6;
       ctx.stroke();
 
       // Speed value
       ctx.font = "small-caps bold 120px 'Verdana'";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#ff1111";
-      ctx.shadowColor = "rgba(255,0,0,0.7)";
-      ctx.shadowBlur = 12;
+      ctx.fillStyle = "#EDEFF2";
+      ctx.shadowColor = "rgba(255, 122, 24, 0.3)";
+      ctx.shadowBlur = 8;
       ctx.fillText(String(speed), cx, cy - 140);
     }
 
@@ -207,10 +206,98 @@ export function dashboard() {
   }, []);
 
   return (
-    <div className="w-full h-full flex justify-center items-center bg-gray-900">
-      <style>{`\n/* Background with image */\n.carbon { background: url(${backgroundImage}) center/cover; position: relative; background-size: cover; background-position: center; background-attachment: fixed; }\n.carbon::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,0,0,0.05) 0%, rgba(255,50,0,0.05) 100%); pointer-events: none; }\ncanvas { image-rendering: optimizeSpeed; image-rendering: crisp-edges; filter: drop-shadow(0 0 12px rgba(255,0,0,0.4)); }\n.neon-text { text-shadow: 0 0 10px rgba(255,0,0,0.8), 0 0 20px rgba(255,50,0,0.6), 0 0 30px rgba(255,0,0,0.4); color: #ff1111; }\n.side-box { margin-top: 10px; background: linear-gradient(135deg, rgba(0,0,0,0.75), rgba(40,0,0,0.75)); border-left: 4px solid #ff3333; border-top: 4px solid #ff3333; border-radius: 8px; padding: 16px 20px; display: flex; flex-direction: column; justify-content: space-around; height: 90%; backdrop-filter: blur(10px); box-shadow: 0 0 25px rgba(255,0,0,0.25), inset 0 0 15px rgba(255,0,0,0.12), 0 0 8px rgba(0,0,0,0.5); border-bottom: 2px solid rgba(255,50,0,0.3); border-right: 2px solid rgba(255,50,0,0.3); }\n.value-glow { transition: all 0.15s ease-in-out; }\n.value-glow:hover { text-shadow: 0 0 20px #ff1111, 0 0 40px #ff3333, 0 0 60px #ff0000; transform: scale(1.1); filter: brightness(1.3); }\n.shift-arrow { position: absolute; margin-top: -20px; font-size: 3.5rem; font-weight: bold; z-index: 20; user-select: none; pointer-events: none; transform: translateY(-50%); top: 50%; text-shadow: 0 0 12px; filter: drop-shadow(0 0 8px); }\n#downshift { left: 220px; color: #ff1111; display: none; text-shadow: 0 0 16px #ff0000, 0 0 30px #ff3333; }\n#upshift { right: 240px; color: #00ff00; display: none; text-shadow: 0 0 16px #00ff00, 0 0 30px #00ff00; }\n.label-text { text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.7rem; color: rgba(255,100,0,0.8); font-weight: 700; text-shadow: 0 0 4px rgba(255,0,0,0.5); }\n      `}</style>
+    <div className="w-full h-full flex justify-center items-center" style={{ backgroundColor: "#0F1216" }}>
+      <style>{`
+        /* Background with dark theme */
+        .carbon { 
+          background: linear-gradient(135deg, #141821 0%, #0E1117 100%);
+          position: relative;
+          border-radius: 20px;
+        }
+        
+        .carbon::before { 
+          content: ''; 
+          position: absolute; 
+          inset: 0; 
+          background: linear-gradient(135deg, rgba(255, 140, 43, 0.03) 0%, rgba(255, 140, 43, 0.01) 100%); 
+          pointer-events: none; 
+          border-radius: 20px;
+        }
+        
+        canvas { 
+          image-rendering: optimizeSpeed; 
+          image-rendering: crisp-edges; 
+          filter: drop-shadow(0 0 8px rgba(255, 122, 24, 0.2)); 
+        }
+        
+        .neon-text { 
+          text-shadow: 0 0 8px rgba(255, 122, 24, 0.4), 0 0 16px rgba(255, 140, 43, 0.2); 
+          color: #EDEFF2; 
+        }
+        
+        .side-box { 
+          margin-top: 10px; 
+          background: linear-gradient(135deg, rgba(20, 24, 33, 0.8), rgba(14, 17, 23, 0.8)); 
+          border: 1px solid rgba(255, 140, 43, 0.25); 
+          border-radius: 12px; 
+          padding: 16px 20px; 
+          display: flex; 
+          flex-direction: column; 
+          justify-content: space-around; 
+          height: 90%; 
+          backdrop-filter: blur(12px); 
+          box-shadow: 0 0 20px rgba(255, 122, 24, 0.1), inset 0 0 15px rgba(255, 140, 43, 0.05); 
+        }
+        
+        .value-glow { 
+          transition: all 0.15s ease-in-out; 
+        }
+        
+        .value-glow:hover { 
+          text-shadow: 0 0 12px #FF8C2B, 0 0 24px #FF7A18; 
+          transform: scale(1.05); 
+          filter: brightness(1.15); 
+        }
+        
+        .shift-arrow { 
+          position: absolute; 
+          margin-top: -20px; 
+          font-size: 3.5rem; 
+          font-weight: bold; 
+          z-index: 20; 
+          user-select: none; 
+          pointer-events: none; 
+          transform: translateY(-50%); 
+          top: 50%; 
+          text-shadow: 0 0 12px; 
+          filter: drop-shadow(0 0 6px); 
+        }
+        
+        #downshift { 
+          left: 220px; 
+          color: #FF3B30; 
+          display: none; 
+          text-shadow: 0 0 12px #FF3B30; 
+        }
+        
+        #upshift { 
+          right: 240px; 
+          color: #34C759; 
+          display: none; 
+          text-shadow: 0 0 12px #34C759; 
+        }
+        
+        .label-text { 
+          text-transform: uppercase; 
+          letter-spacing: 0.15em; 
+          font-size: 0.65rem; 
+          color: #9AA3AE; 
+          font-weight: 600; 
+          text-shadow: none;
+        }
+      `}</style>
 
-      <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border border-cyan-900 flex overflow-hidden">
+      <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(255, 140, 43, 0.2)" }}>
 
         <div className="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box">
           <div className="space-y-1">
