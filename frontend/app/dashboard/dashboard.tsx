@@ -21,15 +21,15 @@ export function dashboard() {
     const end = Math.PI * 1.95;
 
     const rpmGrad = ctx.createLinearGradient(cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
-    rpmGrad.addColorStop(0, "#ff00ff");
-    rpmGrad.addColorStop(0.5, "#d64cff");
-    rpmGrad.addColorStop(1, "#ff00ff");
+    rpmGrad.addColorStop(0, "#ff0000");
+    rpmGrad.addColorStop(0.5, "#ff3333");
+    rpmGrad.addColorStop(1, "#ff6600");
 
     function drawRpmScale() {
       ctx.save();
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(0,255,255,0.6)";
-      ctx.fillStyle = "rgba(0,255,255,0.8)";
+      ctx.strokeStyle = "rgba(255,51,51,0.8)";
+      ctx.fillStyle = "rgba(255,51,51,0.9)";
       ctx.font = "bold 18px 'Arial'";
       ctx.textAlign = "center";
 
@@ -43,8 +43,8 @@ export function dashboard() {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
-        ctx.shadowColor = "rgba(0,255,255,0.5)";
-        ctx.shadowBlur = 4;
+        ctx.shadowColor = "rgba(255,0,0,0.6)";
+        ctx.shadowBlur = 5;
         ctx.fillText(String(i), cx + Math.cos(a) * (rOuter + 55), cy + Math.sin(a) * (rOuter + 55));
         ctx.shadowBlur = 0;
       }
@@ -55,8 +55,8 @@ export function dashboard() {
     function drawSpeedScale() {
       ctx.save();
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(0,255,255,0.5)";
-      ctx.fillStyle = "rgba(0,255,255,0.7)";
+      ctx.strokeStyle = "rgba(255,51,51,0.7)";
+      ctx.fillStyle = "rgba(255,51,51,0.85)";
       ctx.font = "bold 15px 'Arial'";
       ctx.textAlign = "center";
 
@@ -72,8 +72,8 @@ export function dashboard() {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
-        ctx.shadowColor = "rgba(0,255,255,0.4)";
-        ctx.shadowBlur = 3;
+        ctx.shadowColor = "rgba(255,0,0,0.5)";
+        ctx.shadowBlur = 4;
         ctx.fillText(String(val), cx + Math.cos(a) * (rInner + 11), cy + Math.sin(a) * (rInner + 11));
         ctx.shadowBlur = 0;
       }
@@ -89,7 +89,7 @@ export function dashboard() {
       // Background circle
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, end);
-      ctx.strokeStyle = "rgba(0,255,255,0.1)";
+      ctx.strokeStyle = "rgba(255,51,51,0.15)";
       ctx.lineWidth = 45;
       ctx.stroke();
 
@@ -99,8 +99,8 @@ export function dashboard() {
       ctx.save();
       ctx.strokeStyle = rpmGrad;
       ctx.lineWidth = 45;
-      ctx.shadowColor = "rgba(0,255,255,0.4)";
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(255,0,0,0.5)";
+      ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, rpmEnd);
       ctx.stroke();
@@ -112,19 +112,19 @@ export function dashboard() {
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(ang) * rInner, cy + Math.sin(ang) * rInner);
-      ctx.strokeStyle = "rgba(0,255,255,0.8)";
+      ctx.strokeStyle = "rgba(255,51,51,0.95)";
       ctx.lineWidth = 4;
-      ctx.shadowColor = "rgba(0,255,255,0.6)";
-      ctx.shadowBlur = 6;
+      ctx.shadowColor = "rgba(255,0,0,0.7)";
+      ctx.shadowBlur = 8;
       ctx.stroke();
 
       // Speed value
       ctx.font = "small-caps bold 120px 'Verdana'";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "cyan";
-      ctx.shadowColor = "rgba(0,255,255,0.6)";
-      ctx.shadowBlur = 10;
+      ctx.fillStyle = "#ff1111";
+      ctx.shadowColor = "rgba(255,0,0,0.7)";
+      ctx.shadowBlur = 12;
       ctx.fillText(String(speed), cx, cy - 140);
     }
 
