@@ -22,6 +22,8 @@ services:
     volumes:
       - ./backend:/app
       - ./sqlite:/db
+    devices:
+      - /dev/serial0:/dev/serial0
     environment:
       - DATABASE_URL=sqlite:////db/app.db
     depends_on:
@@ -29,6 +31,7 @@ services:
     networks:
       - app-network
     command: python main.py
+    privileged: true
 
   frontend:
     build:

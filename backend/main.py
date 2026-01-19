@@ -4,8 +4,10 @@ import serial
 import asyncio
 import logging
 import random
+import platform
 from contextlib import asynccontextmanager
 
+# UART Konfiguration für OBD-Daten
 SERIAL_PORT = '/dev/serial0'
 BAUDRATE = 115200
 
@@ -24,16 +26,14 @@ def init_uart():
         ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.05)
         logger.info(f"UART verbunden: {SERIAL_PORT}")
     except Exception as e:
-        logger.error(f"UART Fehler: {e}")
-        ser = None
+        logger.error(f"UART Fehler - OBD-Daten nicht verfügbar: {e}")
+        raise e
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
     buffer = ""
     while True:
         try:
-            # If UART not available, emit simulated telemetry for development/testing
-           
             if ser and ser.in_waiting:
                 buffer += ser.read(ser.in_waiting).decode(errors='ignore')
                 while '\n' in buffer:
@@ -46,17 +46,18 @@ async def uart_task():
                                 k, v = part.split(':', 1)
                                 data_dict[k.strip()] = v.strip()
                         if data_dict:
-                            # Broadcast data to any connected WebSocket clients
+                            # Broadcast OBD-Daten zu verbundenen WebSocket Clients
                             for ws in list(connected_clients):
                                 try:
                                     await ws.send_json(data_dict)
                                 except Exception:
                                     connected_clients.discard(ws)
-                            logger.info(f"Daten empfangen: {data_dict}")
+                            logger.info(f"OBD-Daten empfangen: {data_dict}")
+            else:
+                await asyncio.sleep(0.01)
         except Exception as e:
             logger.error(f"Fehler bei UART-Verarbeitung: {e}")
-        
-        await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
 
 # Lifespan-Context für Startup/Shutdown
 @asynccontextmanager
@@ -93,7 +94,8 @@ async def root():
 async def health_check():
     return {
         "status": "ok",
-        "uart_connected": ser is not None
+        "uart_connected": ser is not None,
+        "obd_ready": ser is not None
     }
 
 @app.get("/api/data")
