@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import backgroundImage from "../background/background.png";
 
 export function dashboard() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -228,12 +229,15 @@ export function dashboard() {
   }, []);
 
   return (
-    <div className="w-full h-full flex justify-center items-center" style={{ backgroundColor: "#050607" }}>
+    <div className="w-full h-full flex justify-center items-center bg-gray-900">
       <style>{`
-        /* Background with dark theme */
+        /* Background with image */
         .carbon { 
-          background: linear-gradient(135deg, #0A0B0F 0%, #050607 100%);
+          background: url(${backgroundImage}) center/cover;
           position: relative;
+          background-size: cover;
+          background-position: center;
+          background-attachment: fixed;
           border-radius: 20px;
         }
         
