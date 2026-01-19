@@ -8,8 +8,10 @@ import platform
 from contextlib import asynccontextmanager
 
 # UART Konfiguration für OBD-Daten
-SERIAL_PORT = '/dev/serial0'
+# Raspberry Pi Standard UART Ports
+SERIAL_PORTS = ['/dev/ttyAMA0', '/dev/ttyS0', '/dev/serial0']
 BAUDRATE = 115200
+SERIAL_PORT = None
 
 # Logging konfigurieren
 logging.basicConfig(level=logging.INFO)
@@ -21,15 +23,20 @@ connected_clients = set()
 
 # UART initialisieren
 def init_uart():
-    global ser
-    try:
-        ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.05)
-        logger.info(f"UART verbunden: {SERIAL_PORT}")
-        return True
-    except Exception as e:
-        logger.error(f"UART Fehler - OBD-Daten nicht verfügbar: {e}")
-        ser = None
-        return False
+    global ser, SERIAL_PORT
+    for port in SERIAL_PORTS:
+        try:
+            ser = serial.Serial(port, BAUDRATE, timeout=0.05)
+            SERIAL_PORT = port
+            logger.info(f"UART verbunden: {SERIAL_PORT}")
+            return True
+        except Exception as e:
+            logger.debug(f"Port {port} nicht verfügbar: {e}")
+            continue
+    
+    logger.error(f"Keine UART-Schnittstelle verfügbar. Versuchte Ports: {SERIAL_PORTS}")
+    ser = None
+    return False
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():

@@ -23,7 +23,8 @@ services:
       - ./backend:/app
       - ./sqlite:/db
     devices:
-      - /dev/serial0:/dev/serial0
+      - /dev/ttyAMA0:/dev/ttyAMA0
+      - /dev/ttyS0:/dev/ttyS0
     environment:
       - DATABASE_URL=sqlite:////db/app.db
     depends_on:
