@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import backgroundImage from "../background/background.jpg";
 
 export default function dashboard() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -233,7 +232,7 @@ export default function dashboard() {
       <style>{`
         /* Background with image */
         .carbon { 
-          background: url(${backgroundImage}) center/cover;
+          background: #000;
           position: relative;
           background-size: cover;
           background-position: center;
