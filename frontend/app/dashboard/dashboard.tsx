@@ -147,27 +147,40 @@ export function dashboard() {
         
         if (data.COOLANT !== undefined) {
           const el = document.getElementById("temp");
+          const bar = document.getElementById("temp-bar");
           if (el) el.textContent = data.COOLANT;
+          if (bar) bar.style.width = Math.min(parseInt(data.COOLANT) / 120 * 100, 100) + "%";
         }
         if (data.OIL !== undefined) {
           const el = document.getElementById("oil");
+          const bar = document.getElementById("oil-bar");
           if (el) el.textContent = data.OIL;
+          if (bar) bar.style.width = Math.min(parseInt(data.OIL) / 120 * 100, 100) + "%";
         }
         if (data.FUEL !== undefined) {
           const el = document.getElementById("fuel");
+          const bar = document.getElementById("fuel-bar");
           if (el) el.textContent = data.FUEL;
+          if (bar) bar.style.width = Math.min(parseInt(data.FUEL) / 100 * 100, 100) + "%";
         }
         if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
           const el = document.getElementById("voltage");
-          if (el) el.textContent = data.VOLTAGE || data.BATTERY;
+          const bar = document.getElementById("voltage-bar");
+          const voltage = data.VOLTAGE || data.BATTERY;
+          if (el) el.textContent = voltage;
+          if (bar) bar.style.width = Math.min(parseInt(voltage) / 14 * 100, 100) + "%";
         }
         if (data.BOOST !== undefined) {
           const el = document.getElementById("boost");
+          const bar = document.getElementById("boost-bar");
           if (el) el.textContent = data.BOOST;
+          if (bar) bar.style.width = Math.min(parseInt(data.BOOST) / 2 * 100, 100) + "%";
         }
         if (data.OILPRESS !== undefined) {
           const el = document.getElementById("oilpress");
+          const bar = document.getElementById("oilpress-bar");
           if (el) el.textContent = data.OILPRESS;
+          if (bar) bar.style.width = Math.min(parseInt(data.OILPRESS) / 5 * 100, 100) + "%";
         }
 
         // Downshift & Upshift indicators
@@ -232,7 +245,16 @@ export function dashboard() {
         
         .neon-text { 
           text-shadow: 0 0 8px rgba(255, 122, 24, 0.4), 0 0 16px rgba(255, 140, 43, 0.2); 
-          color: #EDEFF2; 
+          color: #FF8C2B; 
+        }
+        
+        .value-bar {
+          height: 6px;
+          background: linear-gradient(90deg, #FF8C2B 0%, #E6761F 100%);
+          border-radius: 3px;
+          margin-top: 6px;
+          transition: width 0.2s ease-out;
+          box-shadow: 0 0 8px rgba(255, 140, 43, 0.3);
         }
         
         .side-box { 
@@ -303,14 +325,17 @@ export function dashboard() {
           <div className="space-y-1">
             <div className="label-text">OIL TEMP</div>
             <div id="oil" className="neon-text text-3xl font-bold value-glow">60°C</div>
+            <div id="oil-bar" className="value-bar"></div>
           </div>
           <div className="space-y-1">
             <div className="label-text">FUEL</div>
             <div id="fuel" className="neon-text text-3xl font-bold value-glow">73%</div>
+            <div id="fuel-bar" className="value-bar"></div>
           </div>
           <div className="space-y-1">
             <div className="label-text">COOLANT</div>
             <div id="temp" className="neon-text text-3xl font-bold value-glow">20°C</div>
+            <div id="temp-bar" className="value-bar"></div>
           </div>
         </div>
 
@@ -321,14 +346,17 @@ export function dashboard() {
           <div className="space-y-1">
             <div className="label-text">BATTERY</div>
             <div id="voltage" className="neon-text text-3xl font-bold value-glow">12.1V</div>
+            <div id="voltage-bar" className="value-bar"></div>
           </div>
           <div className="space-y-1">
             <div className="label-text">BOOST</div>
             <div id="boost" className="neon-text text-3xl font-bold value-glow">1.1 bar</div>
+            <div id="boost-bar" className="value-bar"></div>
           </div>
           <div className="space-y-1">
             <div className="label-text">OIL PRESS</div>
             <div id="oilpress" className="neon-text text-3xl font-bold value-glow">0.3 bar</div>
+            <div id="oilpress-bar" className="value-bar"></div>
           </div>
         </div>
 
