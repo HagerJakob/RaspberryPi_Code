@@ -149,38 +149,47 @@ export function dashboard() {
           const el = document.getElementById("temp");
           const bar = document.getElementById("temp-bar");
           if (el) el.textContent = data.COOLANT;
-          if (bar) bar.style.width = Math.min(parseInt(data.COOLANT) / 120 * 100, 100) + "%";
+          if (bar) bar.style.width = Math.max(0, Math.min(parseInt(data.COOLANT) / 120 * 100, 100)) + "%";
         }
         if (data.OIL !== undefined) {
           const el = document.getElementById("oil");
           const bar = document.getElementById("oil-bar");
           if (el) el.textContent = data.OIL;
-          if (bar) bar.style.width = Math.min(parseInt(data.OIL) / 120 * 100, 100) + "%";
+          if (bar) bar.style.width = Math.max(0, Math.min(parseInt(data.OIL) / 120 * 100, 100)) + "%";
         }
         if (data.FUEL !== undefined) {
           const el = document.getElementById("fuel");
           const bar = document.getElementById("fuel-bar");
           if (el) el.textContent = data.FUEL;
-          if (bar) bar.style.width = Math.min(parseInt(data.FUEL) / 100 * 100, 100) + "%";
+          // FUEL is in % (0-100)
+          if (bar) bar.style.width = Math.max(0, Math.min(parseInt(data.FUEL), 100)) + "%";
         }
         if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
           const el = document.getElementById("voltage");
           const bar = document.getElementById("voltage-bar");
-          const voltage = data.VOLTAGE || data.BATTERY;
+          const voltage = parseFloat(data.VOLTAGE || data.BATTERY);
           if (el) el.textContent = voltage;
-          if (bar) bar.style.width = Math.min(parseInt(voltage) / 14 * 100, 100) + "%";
+          // VOLTAGE: 11.8V (0%) to 12.3V (100%)
+          if (bar) {
+            const vMin = 11.8;
+            const vMax = 12.3;
+            const vPercent = ((voltage - vMin) / (vMax - vMin)) * 100;
+            bar.style.width = Math.max(0, Math.min(vPercent, 100)) + "%";
+          }
         }
         if (data.BOOST !== undefined) {
           const el = document.getElementById("boost");
           const bar = document.getElementById("boost-bar");
           if (el) el.textContent = data.BOOST;
-          if (bar) bar.style.width = Math.min(parseInt(data.BOOST) / 2 * 100, 100) + "%";
+          // BOOST: 0-2 bar
+          if (bar) bar.style.width = Math.max(0, Math.min(parseFloat(data.BOOST) / 2 * 100, 100)) + "%";
         }
         if (data.OILPRESS !== undefined) {
           const el = document.getElementById("oilpress");
           const bar = document.getElementById("oilpress-bar");
           if (el) el.textContent = data.OILPRESS;
-          if (bar) bar.style.width = Math.min(parseInt(data.OILPRESS) / 5 * 100, 100) + "%";
+          // OIL PRESSURE: 0-5 bar
+          if (bar) bar.style.width = Math.max(0, Math.min(parseFloat(data.OILPRESS) / 5 * 100, 100)) + "%";
         }
 
         // Downshift & Upshift indicators
@@ -219,11 +228,11 @@ export function dashboard() {
   }, []);
 
   return (
-    <div className="w-full h-full flex justify-center items-center" style={{ backgroundColor: "#0F1216" }}>
+    <div className="w-full h-full flex justify-center items-center" style={{ backgroundColor: "#050607" }}>
       <style>{`
         /* Background with dark theme */
         .carbon { 
-          background: linear-gradient(135deg, #141821 0%, #0E1117 100%);
+          background: linear-gradient(135deg, #0A0B0F 0%, #050607 100%);
           position: relative;
           border-radius: 20px;
         }
@@ -259,7 +268,7 @@ export function dashboard() {
         
         .side-box { 
           margin-top: 10px; 
-          background: linear-gradient(135deg, rgba(20, 24, 33, 0.8), rgba(14, 17, 23, 0.8)); 
+          background: linear-gradient(135deg, rgba(10, 11, 15, 0.9), rgba(5, 6, 7, 0.9)); 
           border: 1px solid rgba(255, 140, 43, 0.25); 
           border-radius: 12px; 
           padding: 16px 20px; 
