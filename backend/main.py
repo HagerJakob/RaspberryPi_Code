@@ -38,42 +38,51 @@ def init_uart():
     ser = None
     return False
 
+# Globale Variablen für OBD-Daten Akkumulation
+obd_data = {}
+last_broadcast_time = 0
+broadcast_interval = 0.05  # Broadcast alle 50ms
+
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
+    global obd_data, last_broadcast_time
     buffer = ""
-    last_send_time = 0
-    min_interval = 0.02  # Min 20ms zwischen sends = 50 Hz
     first_message = True
+    
     while True:
         try:
             current_time = asyncio.get_event_loop().time()
+            
             if ser and ser.in_waiting:
                 buffer += ser.read(ser.in_waiting).decode(errors='ignore')
                 while '\n' in buffer:
                     line, buffer = buffer.split('\n', 1)
                     line = line.strip()
-                    if line and (current_time - last_send_time) >= min_interval:
-                        data_dict = {}
-                        for part in line.split(','):
-                            if ':' in part:
-                                k, v = part.split(':', 1)
-                                # Normalisiere zu GROSSBUCHSTABEN
-                                k_upper = k.strip().upper()
-                                data_dict[k_upper] = v.strip()
-                        if data_dict:
-                            if first_message:
-                                logger.info(f"Feldnamen vom Arduino: {list(data_dict.keys())}")
-                                logger.info(f"Erste Daten: {data_dict}")
+                    
+                    # Parse einzelne Zeile: "RPM:5000" oder "SPEED:120"
+                    if ':' in line:
+                        parts = line.split(':', 1)
+                        if len(parts) == 2:
+                            k = parts[0].strip().upper()
+                            v = parts[1].strip()
+                            obd_data[k] = v
+                            
+                            if first_message and len(obd_data) >= 3:
+                                logger.info(f"Feldnamen vom Arduino: {list(obd_data.keys())}")
+                                logger.info(f"Erste Daten: {obd_data}")
                                 first_message = False
-                            # Broadcast OBD-Daten zu verbundenen WebSocket Clients
-                            for ws in list(connected_clients):
-                                try:
-                                    await ws.send_json(data_dict)
-                                except Exception:
-                                    connected_clients.discard(ws)
-                            logger.debug(f"OBD-Daten: {data_dict}")
-                            last_send_time = current_time
-            await asyncio.sleep(0.001)  # Sehr kurzes Sleep für hohe Responsivität
+            
+            # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
+            if obd_data and (current_time - last_broadcast_time) >= broadcast_interval:
+                for ws in list(connected_clients):
+                    try:
+                        await ws.send_json(obd_data)
+                    except Exception:
+                        connected_clients.discard(ws)
+                logger.debug(f"OBD-Daten gesendet: {obd_data}")
+                last_broadcast_time = current_time
+            
+            await asyncio.sleep(0.001)
         except Exception as e:
             logger.error(f"Fehler bei UART-Verarbeitung: {e}")
             await asyncio.sleep(0.1)
