@@ -150,6 +150,26 @@ export function dashboard() {
           const el = document.getElementById("temp");
           if (el) el.textContent = data.COOLANT;
         }
+        if (data.OIL !== undefined) {
+          const el = document.getElementById("oil");
+          if (el) el.textContent = data.OIL;
+        }
+        if (data.FUEL !== undefined) {
+          const el = document.getElementById("fuel");
+          if (el) el.textContent = data.FUEL;
+        }
+        if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
+          const el = document.getElementById("voltage");
+          if (el) el.textContent = data.VOLTAGE || data.BATTERY;
+        }
+        if (data.BOOST !== undefined) {
+          const el = document.getElementById("boost");
+          if (el) el.textContent = data.BOOST;
+        }
+        if (data.OILPRESS !== undefined) {
+          const el = document.getElementById("oilpress");
+          if (el) el.textContent = data.OILPRESS;
+        }
 
         // Downshift & Upshift indicators
         const down = document.getElementById("downshift");
@@ -161,7 +181,7 @@ export function dashboard() {
           needsRedraw = true;
         }
       } catch (e) {
-        // ignore
+        console.error("Parse error:", e);
       }
     };
 
