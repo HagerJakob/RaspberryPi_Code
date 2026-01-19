@@ -43,6 +43,7 @@ async def uart_task():
     buffer = ""
     last_send_time = 0
     min_interval = 0.02  # Min 20ms zwischen sends = 50 Hz
+    first_message = True
     while True:
         try:
             current_time = asyncio.get_event_loop().time()
@@ -56,8 +57,14 @@ async def uart_task():
                         for part in line.split(','):
                             if ':' in part:
                                 k, v = part.split(':', 1)
-                                data_dict[k.strip()] = v.strip()
+                                # Normalisiere zu GROSSBUCHSTABEN
+                                k_upper = k.strip().upper()
+                                data_dict[k_upper] = v.strip()
                         if data_dict:
+                            if first_message:
+                                logger.info(f"Feldnamen vom Arduino: {list(data_dict.keys())}")
+                                logger.info(f"Erste Daten: {data_dict}")
+                                first_message = False
                             # Broadcast OBD-Daten zu verbundenen WebSocket Clients
                             for ws in list(connected_clients):
                                 try:
