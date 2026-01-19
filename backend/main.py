@@ -39,7 +39,16 @@ def init_uart():
     return False
 
 # Globale Variablen für OBD-Daten Akkumulation
-obd_data = {}
+obd_data = {
+    "RPM": "0",
+    "SPEED": "0",
+    "COOLANT": "20",
+    "OIL": "60",
+    "FUEL": "73",
+    "VOLTAGE": "12.1",
+    "BOOST": "1.1",
+    "OILPRESS": "0.3"
+}
 last_broadcast_time = 0
 broadcast_interval = 0.05  # Broadcast alle 50ms
 
