@@ -33,20 +33,7 @@ async def uart_task():
     while True:
         try:
             # If UART not available, emit simulated telemetry for development/testing
-            if ser is None:
-                data_dict = {
-                    "RPM": str(random.randint(500, 7000)),
-                    "SPEED": str(random.randint(0, 255)),
-                    "COOLANT": f"{random.randint(18,90)}°C"
-                }
-                for ws in list(connected_clients):
-                    try:
-                        await ws.send_json(data_dict)
-                    except Exception:
-                        connected_clients.discard(ws)
-                logger.debug(f"Simulated data: {data_dict}")
-                await asyncio.sleep(0.2)
-                continue
+           
             if ser and ser.in_waiting:
                 buffer += ser.read(ser.in_waiting).decode(errors='ignore')
                 while '\n' in buffer:
