@@ -41,14 +41,17 @@ def init_uart():
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
     buffer = ""
+    last_send_time = 0
+    min_interval = 0.02  # Min 20ms zwischen sends = 50 Hz
     while True:
         try:
+            current_time = asyncio.get_event_loop().time()
             if ser and ser.in_waiting:
                 buffer += ser.read(ser.in_waiting).decode(errors='ignore')
                 while '\n' in buffer:
                     line, buffer = buffer.split('\n', 1)
                     line = line.strip()
-                    if line:
+                    if line and (current_time - last_send_time) >= min_interval:
                         data_dict = {}
                         for part in line.split(','):
                             if ':' in part:
@@ -61,9 +64,9 @@ async def uart_task():
                                     await ws.send_json(data_dict)
                                 except Exception:
                                     connected_clients.discard(ws)
-                            logger.info(f"OBD-Daten empfangen: {data_dict}")
-            else:
-                await asyncio.sleep(0.01)
+                            logger.debug(f"OBD-Daten: {data_dict}")
+                            last_send_time = current_time
+            await asyncio.sleep(0.001)  # Sehr kurzes Sleep für hohe Responsivität
         except Exception as e:
             logger.error(f"Fehler bei UART-Verarbeitung: {e}")
             await asyncio.sleep(0.1)

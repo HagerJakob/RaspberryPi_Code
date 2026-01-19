@@ -134,14 +134,27 @@ export function dashboard() {
     const wsUrl = `${proto}://${host}:5000/ws`;
     const ws = new WebSocket(wsUrl);
 
+    let animationId: number;
+    let needsRedraw = true;
+
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data);
+        const oldRpm = rpm;
+        const oldSpeed = speed;
+        
         if (data.RPM !== undefined) rpm = parseInt(data.RPM);
+        if (data.rpm !== undefined) rpm = parseInt(data.rpm);
         if (data.SPEED !== undefined) speed = parseInt(data.SPEED);
+        if (data.speed !== undefined) speed = parseInt(data.speed);
+        
         if (data.COOLANT !== undefined) {
           const el = document.getElementById("temp");
           if (el) el.textContent = data.COOLANT;
+        }
+        if (data.coolant !== undefined) {
+          const el = document.getElementById("temp");
+          if (el) el.textContent = data.coolant;
         }
 
         // Downshift & Upshift indicators
@@ -150,17 +163,30 @@ export function dashboard() {
         if (down) down.style.display = rpm < 1000 ? "block" : "none";
         if (up) up.style.display = rpm > 6000 ? "block" : "none";
 
-        drawGauge();
+        if (rpm !== oldRpm || speed !== oldSpeed) {
+          needsRedraw = true;
+        }
       } catch (e) {
         // ignore
       }
     };
 
+    // Continuous animation loop - redraws at 60fps
+    const animate = () => {
+      if (needsRedraw) {
+        drawGauge();
+        needsRedraw = false;
+      }
+      animationId = requestAnimationFrame(animate);
+    };
+
     // initial draw
     drawGauge();
+    animate();
 
     return () => {
       try {
+        if (animationId) cancelAnimationFrame(animationId);
         ws.close();
       } catch {}
     };
