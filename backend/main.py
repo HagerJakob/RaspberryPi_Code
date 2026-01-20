@@ -1,11 +1,14 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
+import os
 import serial
 import asyncio
 import logging
 import random
 import platform
 from contextlib import asynccontextmanager
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+
+from db import DatabaseConnection
 
 # UART Konfiguration für OBD-Daten
 # Raspberry Pi Standard UART Ports
@@ -20,6 +23,13 @@ logger = logging.getLogger(__name__)
 # Globale Variablen
 ser = None
 connected_clients = set()
+
+# Datenbank
+DB_PATH = os.getenv("DATABASE_URL", "/db/app.db")
+db = DatabaseConnection(DB_PATH)
+AUTO_ID = 1  # Standardfahrzeug für Logs
+LOG_INTERVAL_SECONDS = 60  # Durchschnittsgeschwindigkeit pro Minute
+LOG_SAMPLE_INTERVAL = 1.0  # jede Sekunde Geschwindigkeit puffern
 
 # UART initialisieren
 def init_uart():
@@ -51,6 +61,7 @@ obd_data = {
 }
 last_broadcast_time = 0
 broadcast_interval = 0.05  # Broadcast alle 50ms
+logging_bg_task = None
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
@@ -96,18 +107,65 @@ async def uart_task():
             logger.error(f"Fehler bei UART-Verarbeitung: {e}")
             await asyncio.sleep(0.1)
 
+
+async def logging_task():
+    """Speichert OBD-Daten in die Datenbank, ohne den 50ms-Broadcast zu stören."""
+    speeds = []
+    last_log_time = asyncio.get_event_loop().time()
+    while True:
+        try:
+            # Aktuelle Geschwindigkeit sammeln
+            try:
+                speeds.append(float(obd_data.get("SPEED", 0) or 0))
+            except Exception:
+                speeds.append(0.0)
+
+            now = asyncio.get_event_loop().time()
+            if now - last_log_time >= LOG_INTERVAL_SECONDS:
+                avg_speed = int(sum(speeds) / len(speeds)) if speeds else 0
+
+                def _to_int(key: str, default: int = 0) -> int:
+                    try:
+                        return int(float(obd_data.get(key, default) or default))
+                    except Exception:
+                        return default
+
+                # Platzhalter für GPS (nicht vorhanden)
+                db.insert_log_entry(
+                    auto_id=AUTO_ID,
+                    speed=avg_speed,
+                    rpm=_to_int("RPM"),
+                    coolant_temp=_to_int("COOLANT"),
+                    fuel_level=_to_int("FUEL"),
+                    gps_latitude=0.0,
+                    gps_longitude=0.0,
+                )
+                logger.info(f"Log gespeichert (avg_speed={avg_speed})")
+
+                speeds = []
+                last_log_time = now
+
+            await asyncio.sleep(LOG_SAMPLE_INTERVAL)
+        except Exception as e:
+            logger.error(f"Fehler beim Logging: {e}")
+            await asyncio.sleep(1.0)
+
 # Lifespan-Context für Startup/Shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     init_uart()
     uart_bg_task = asyncio.create_task(uart_task())
+    global logging_bg_task
+    logging_bg_task = asyncio.create_task(logging_task())
     logger.info("Backend gestartet")
     yield
     # Shutdown
     if ser:
         ser.close()
     uart_bg_task.cancel()
+    if logging_bg_task:
+        logging_bg_task.cancel()
     logger.info("Backend beendet")
 
 # FastAPI App erstellen
