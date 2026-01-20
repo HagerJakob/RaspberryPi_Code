@@ -1,17 +1,38 @@
 #!/usr/bin/env python3
 """
-Bluetooth Client für Windows Laptop
-Verbindet sich mit dem Raspberry Pi und empfängt die Datenbank
+Bluetooth COM-Port Client für Windows Laptop
+Verbindet sich mit dem Raspberry Pi über COM-Port und empfängt die Datenbank
 """
 
 import sys
 import os
 
 try:
+    import serial
+except ImportError:
+    print("pyserial nicht installiert. Installiere: pip install pyserial")
+    sys.exit(1)
+
+try:
     import bluetooth
 except ImportError:
     print("PyBluez nicht installiert. Installiere: pip install pybluez")
     sys.exit(1)
+
+
+def list_com_ports():
+    """Listet verfügbare COM-Ports auf"""
+    import serial.tools.list_ports
+    
+    ports = serial.tools.list_ports.comports()
+    bluetooth_ports = []
+    
+    for port in ports:
+        print(f"    {port.device}: {port.description}")
+        if "Bluetooth" in port.description or "rfcomm" in port.description:
+            bluetooth_ports.append(port.device)
+    
+    return bluetooth_ports
 
 
 def find_raspberry_pi():
@@ -35,49 +56,37 @@ def find_raspberry_pi():
         return choice  # Annahme: MAC-Adresse eingegeben
 
 
-def connect_and_receive(device_addr, save_path="./app.db"):
-    """Verbindet sich mit dem Pi und empfängt die Datenbank"""
-    print(f"\n[*] Verbinde mit {device_addr}...")
+def create_rfcomm_binding(device_addr):
+    """Erstellt RFCOMM Binding (nur auf Linux/Mac nötig)"""
+    # Unter Windows wird dies automatisch gemacht
+    print(f"[*] Verbinde mit {device_addr} über RFCOMM...")
+    
+    try:
+        # Auf Windows wird der COM-Port automatisch erstellt
+        # Hier nur für Linux/Mac relevant
+        import platform
+        if platform.system() != "Windows":
+            os.system(f"sudo rfcomm bind /dev/rfcomm0 {device_addr} 1")
+    except Exception as e:
+        print(f"[!] RFCOMM Binding fehlgeschlagen: {e}")
 
-    # Suche den Bluetooth-Service
-    services = bluetooth.find_service(address=device_addr)
-    if not services:
-        print("[-] Keine Services auf diesem Gerät gefunden!")
-        return False
 
-    print(f"[+] Gefundene Services: {len(services)}")
-
-    # Finde RFCOMM Service (Serial Port)
-    rfcomm_service = None
-    for service in services:
-        print(f"    - {service['name']} (Port {service['port']})")
-        if "Dashboard" in service.get("name", ""):
-            rfcomm_service = service
-            break
-
-    if not rfcomm_service and services:
-        rfcomm_service = services[0]  # Fallback auf ersten Service
-
-    if not rfcomm_service:
-        print("[-] Kein passender Service gefunden!")
-        return False
-
-    port = rfcomm_service["port"]
-    print(f"[*] Nutze Service auf Port {port}")
+def connect_and_receive_via_comport(com_port, save_path="./app.db"):
+    """Verbindet sich über COM-Port mit dem Pi und empfängt die Datenbank"""
+    print(f"\n[*] Verbinde mit {com_port}...")
 
     try:
-        # Erstelle Bluetooth Socket
-        client_socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        client_socket.connect((device_addr, port))
+        # Verbinde mit COM-Port
+        ser = serial.Serial(com_port, timeout=10)
         print("[+] Verbindung hergestellt!")
 
         # Empfange Dateigrößeinfo (4 bytes)
         print("[*] Empfange Dateigrößeinfo...")
-        size_bytes = client_socket.recv(4)
+        size_bytes = ser.read(4)
 
-        if len(size_bytes) == 0:
+        if len(size_bytes) < 4:
             print("[-] Keine Größeinfo erhalten!")
-            client_socket.close()
+            ser.close()
             return False
 
         file_size = int.from_bytes(size_bytes, byteorder="little")
@@ -85,7 +94,7 @@ def connect_and_receive(device_addr, save_path="./app.db"):
         # Prüfe ob es Fehler ist
         if file_size > 1000000000:  # > 1GB würde Fehler bedeuten
             print(f"[-] Fehler vom Pi: {file_size}")
-            client_socket.close()
+            ser.close()
             return False
 
         print(f"[*] Empfange {file_size} bytes...")
@@ -96,7 +105,7 @@ def connect_and_receive(device_addr, save_path="./app.db"):
             while received < file_size:
                 remaining = file_size - received
                 chunk_size = min(4096, remaining)
-                chunk = client_socket.recv(chunk_size)
+                chunk = ser.read(chunk_size)
 
                 if not chunk:
                     print("[-] Verbindung unterbrochen!")
@@ -110,7 +119,7 @@ def connect_and_receive(device_addr, save_path="./app.db"):
                 print(f"[*] Fortschritt: {progress:.1f}% ({received}/{file_size} bytes)", end="\r")
 
         print(f"\n[+] Datei erfolgreich gespeichert: {save_path}")
-        client_socket.close()
+        ser.close()
         return True
 
     except Exception as e:
@@ -119,9 +128,42 @@ def connect_and_receive(device_addr, save_path="./app.db"):
 
 
 if __name__ == "__main__":
-    # Beispielnutzung
-    device = find_raspberry_pi()
-    if device:
-        connect_and_receive(device)
+    import platform
+    
+    print("=== Bluetooth Database Download ===\n")
+    
+    # Wähle COM-Port
+    print("[*] Verfügbare COM-Ports:")
+    bluetooth_ports = list_com_ports()
+    
+    if not bluetooth_ports:
+        print("\n[!] Kein Bluetooth COM-Port gefunden!")
+        print("[*] Suche Bluetooth-Geräte um Binding zu erstellen...")
+        
+        device = find_raspberry_pi()
+        if device:
+            create_rfcomm_binding(device)
+            
+            if platform.system() == "Windows":
+                print("[*] Bitte unter Einstellungen → Bluetooth den Pi koppeln")
+                print("[*] Dann prüfen Sie unter 'COM-Ports (COM & LPT)'")
+            
+            # Versuche erneut
+            print("\n[*] Verfügbare COM-Ports:")
+            bluetooth_ports = list_com_ports()
+    
+    if not bluetooth_ports:
+        print("[-] Keine Bluetooth COM-Ports gefunden. Bitte Pi koppeln!")
+        sys.exit(1)
+    
+    # Wähle COM-Port
+    choice = input("\nWähle COM-Port Nummer (z.B. 1 für COM1): ").strip()
+    
+    if choice.isdigit():
+        com_port = f"COM{choice}"
     else:
-        print("[-] Kein Gerät ausgewählt")
+        com_port = choice
+    
+    # Verbinde und empfange
+    connect_and_receive_via_comport(com_port)
+

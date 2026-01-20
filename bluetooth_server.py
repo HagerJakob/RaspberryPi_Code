@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Bluetooth Server für Raspberry Pi
+Bluetooth RFCOMM Server für Raspberry Pi
 Sendet die SQLite-Datenbank über Bluetooth auf Anfrage vom Laptop
+Nutzt COM-Port für einfache Windows-Kommunikation
 """
 
 import os
 import socket
 import sys
-from pathlib import Path
 
 try:
     import bluetooth
 except ImportError:
-    print("PyBluez nicht installiert. Installiere: pip install pybluez")
+    print("PyBluez nicht installiert. Installiere: sudo apt install python3-bluez")
     sys.exit(1)
 
 # Konfiguration
@@ -20,43 +20,22 @@ DB_PATH = os.getenv("DATABASE_URL", "/db/app.db")
 if DB_PATH.startswith("sqlite:///"):
     DB_PATH = DB_PATH.replace("sqlite:///", "", 1)
 
-SERVICE_NAME = "RaspberryPi Dashboard"
-SERVICE_UUID = "94f39d29-7d6d-437d-973b-fba39e49d4ee"
+RFCOMM_CHANNEL = 1
 
 
 def start_bluetooth_server():
-    """Startet einen Bluetooth-Server auf RFCOMM Kanal 1"""
-    print(f"[*] Starte Bluetooth-Server für: {SERVICE_NAME}")
+    """Startet einen Bluetooth RFCOMM Server auf Kanal 1"""
+    print(f"[*] Starte Bluetooth RFCOMM Server auf Kanal {RFCOMM_CHANNEL}")
     print(f"[*] Datenbank: {DB_PATH}")
 
     # Bluetooth Socket erstellen
     server_socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-    server_socket.bind(("", bluetooth.PORT_ANY))
+    server_socket.bind(("", RFCOMM_CHANNEL))
     server_socket.listen(1)
 
-    port = server_socket.getsockname()[1]
-
-    # Service registrieren (optional - vereinfacht)
-    try:
-        bluetooth.advertise_service(
-            server_socket,
-            SERVICE_NAME,
-            service_id=SERVICE_UUID,
-            service_classes=[bluetooth.SERIAL_PORT_CLASS],
-            profiles=[bluetooth.SERIAL_PORT_PROFILE],
-        )
-        print(f"[+] Service registriert")
-    except Exception as e:
-        print(f"[!] SDP-Advertising fehlgeschlagen (ignoriert): {e}")
-        print(f"[!] Server läuft trotzdem, aber ist eventuell nicht auffindbar")
-
-    print(f"[+] Bluetooth-Server läuft auf Port {port}")
-    try:
-        bdaddr = bluetooth.read_local_bdaddr()[0]
-        print(f"[+] Raspberry Pi MAC-Adresse: {bdaddr}")
-    except Exception:
-        print(f"[!] MAC-Adresse konnte nicht gelesen werden")
+    print(f"[+] Bluetooth-Server läuft auf RFCOMM Kanal {RFCOMM_CHANNEL}")
     print(f"[+] Warte auf Verbindungen von Windows Laptop...")
+    print(f"[+] Windows erkennt dies als COM-Port")
 
     try:
         while True:
@@ -77,18 +56,22 @@ def start_bluetooth_server():
                 file_size = os.path.getsize(DB_PATH)
                 print(f"[*] Sende Datenbank ({file_size} bytes)...")
 
-                # Sende Größe zuerst (4 bytes)
+                # Sende Größe zuerst (4 bytes, Little-Endian)
                 client_socket.send(file_size.to_bytes(4, byteorder="little"))
 
                 # Sende Dateiinhalt
+                sent = 0
                 with open(DB_PATH, "rb") as f:
                     while True:
                         chunk = f.read(4096)
                         if not chunk:
                             break
                         client_socket.send(chunk)
+                        sent += len(chunk)
+                        progress = (sent / file_size) * 100
+                        print(f"[*] Fortschritt: {progress:.1f}%", end="\r")
 
-                print(f"[+] Datenbank erfolgreich gesendet!")
+                print(f"\n[+] Datenbank erfolgreich gesendet ({sent} bytes)!")
 
             except Exception as e:
                 print(f"[-] Fehler beim Senden: {e}")
@@ -103,3 +86,4 @@ def start_bluetooth_server():
 
 if __name__ == "__main__":
     start_bluetooth_server()
+
