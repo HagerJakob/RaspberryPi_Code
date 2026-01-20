@@ -224,8 +224,31 @@ async def get_data():
     return {"message": "Verwenden Sie WebSocket für Live-Daten"}
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+@app.get("/api/logs/since")
+async def get_logs_since(timestamp: float = 0.0):
+    """Gibt alle Logs seit dem angegebenen Timestamp zurück"""
+    try:
+        query = """
+            SELECT id, auto_id, geschwindigkeit, rpm, coolant_temp, fuel_level, 
+                   gps_latitude, gps_longitude, timestamp
+            FROM logs
+            WHERE strftime('%s', timestamp) > ?
+            ORDER BY timestamp ASC
+        """
+        results = db.execute_query(query, (int(timestamp),))
+        
+        # Konvertiere zu Sekunden für nächsten Sync
+        import time
+        current_timestamp = time.time()
+        
+        return {
+            "logs": results,
+            "timestamp": current_timestamp,
+            "count": len(results)
+        }
+    except Exception as e:
+        logger.error(f"Fehler beim Abrufen von Logs: {e}")
+        return {"error": str(e), "logs": [], "count": 0}
     await websocket.accept()
     connected_clients.add(websocket)
     try:
