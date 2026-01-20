@@ -112,6 +112,7 @@ async def uart_task():
 async def logging_task():
     """Speichert OBD-Daten in die Datenbank mit verschiedenen Intervallen."""
     speeds = []
+    rpms = []
     coolants = []
     oils = []
     fuels = []
@@ -124,11 +125,13 @@ async def logging_task():
             # Sammle Werte
             try:
                 speeds.append(float(obd_data.get("SPEED", 0) or 0))
+                rpms.append(float(obd_data.get("RPM", 0) or 0))
                 coolants.append(float(obd_data.get("COOLANT", 0) or 0))
                 oils.append(float(obd_data.get("OIL", 0) or 0))
                 fuels.append(float(obd_data.get("FUEL", 0) or 0))
             except Exception:
                 speeds.append(0.0)
+                rpms.append(0.0)
                 coolants.append(0.0)
                 oils.append(0.0)
                 fuels.append(0.0)
@@ -142,12 +145,10 @@ async def logging_task():
                 except Exception:
                     return default
             
-            # Log Speed + RPM jede Sekunde
+            # Log Speed + RPM jede Sekunde (Durchschnittswerte)
             if now - last_speed_log_time >= LOG_SPEED_INTERVAL_SECONDS:
-                avg_speed = int(sum(speeds) / len(speeds)) if speeds else 0
-                rpm = _to_int(float(obd_data.get("RPM", 0) or 0))
-                
-                # Für jede Sekunde: Durchschnitt der Temperatur/Fuel aus dieser Sekunde
+                avg_speed = _to_int(sum(speeds) / len(speeds)) if speeds else 0
+                avg_rpm = _to_int(sum(rpms) / len(rpms)) if rpms else 0
                 avg_coolant = _to_int(sum(coolants) / len(coolants)) if coolants else 0
                 avg_oil = _to_int(sum(oils) / len(oils)) if oils else 0
                 avg_fuel = _to_int(sum(fuels) / len(fuels)) if fuels else 0
@@ -155,15 +156,16 @@ async def logging_task():
                 db.insert_log_entry(
                     auto_id=AUTO_ID,
                     speed=avg_speed,
-                    rpm=rpm,
+                    rpm=avg_rpm,
                     coolant_temp=avg_coolant,
                     fuel_level=avg_fuel,
                     gps_latitude=0.0,
                     gps_longitude=0.0,
                 )
-                logger.info(f"Log (1s): speed={avg_speed}, rpm={rpm}, coolant={avg_coolant}")
+                logger.info(f"Log (1s): speed={avg_speed}, rpm={avg_rpm}, coolant={avg_coolant}")
                 
                 speeds = []
+                rpms = []
                 coolants = []
                 oils = []
                 fuels = []
