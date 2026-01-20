@@ -46,7 +46,6 @@ def start_bluetooth_server():
         protocols=[bluetooth.OBEX_UUID],
         description=f"Sendet die OBD-Datenbank",
         provider="RaspberryPi",
-        port=port,
     )
 
     print(f"[+] Bluetooth-Server läuft auf Port {port}")
