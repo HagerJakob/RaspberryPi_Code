@@ -290,14 +290,16 @@ export default function dashboard() {
         }
 
         .value-row {
-          display: flex;
+          display: grid;
+          grid-template-columns: 96px auto;
           align-items: center;
-          gap: 12px;
+          column-gap: 12px;
         }
 
         .value-number {
           font-size: 2.1rem;
           line-height: 1.05;
+          text-align: right;
         }
         
         .value-glow { 
