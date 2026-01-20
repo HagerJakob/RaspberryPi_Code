@@ -28,8 +28,9 @@ connected_clients = set()
 DB_PATH = os.getenv("DATABASE_URL", "/db/app.db")
 db = DatabaseConnection(DB_PATH)
 AUTO_ID = 1  # Standardfahrzeug für Logs
-LOG_INTERVAL_SECONDS = 60  # Durchschnittsgeschwindigkeit pro Minute
-LOG_SAMPLE_INTERVAL = 1.0  # jede Sekunde Geschwindigkeit puffern
+LOG_SPEED_INTERVAL_SECONDS = 1.0  # Speed jede Sekunde
+LOG_SLOW_INTERVAL_SECONDS = 60.0  # Coolant/Oil/Fuel jede Minute
+LOG_SAMPLE_INTERVAL = 0.1  # Sample alle 100ms
 
 # UART initialisieren
 def init_uart():
@@ -109,41 +110,64 @@ async def uart_task():
 
 
 async def logging_task():
-    """Speichert OBD-Daten in die Datenbank, ohne den 50ms-Broadcast zu stören."""
+    """Speichert OBD-Daten in die Datenbank mit verschiedenen Intervallen."""
     speeds = []
-    last_log_time = asyncio.get_event_loop().time()
+    coolants = []
+    oils = []
+    fuels = []
+    
+    last_speed_log_time = asyncio.get_event_loop().time()
+    last_slow_log_time = asyncio.get_event_loop().time()
+    
     while True:
         try:
-            # Aktuelle Geschwindigkeit sammeln
+            # Sammle Werte
             try:
                 speeds.append(float(obd_data.get("SPEED", 0) or 0))
+                coolants.append(float(obd_data.get("COOLANT", 0) or 0))
+                oils.append(float(obd_data.get("OIL", 0) or 0))
+                fuels.append(float(obd_data.get("FUEL", 0) or 0))
             except Exception:
                 speeds.append(0.0)
+                coolants.append(0.0)
+                oils.append(0.0)
+                fuels.append(0.0)
 
             now = asyncio.get_event_loop().time()
-            if now - last_log_time >= LOG_INTERVAL_SECONDS:
+            
+            # Helper für Werte-Konvertierung
+            def _to_int(value: float, default: int = 0) -> int:
+                try:
+                    return int(value)
+                except Exception:
+                    return default
+            
+            # Log Speed + RPM jede Sekunde
+            if now - last_speed_log_time >= LOG_SPEED_INTERVAL_SECONDS:
                 avg_speed = int(sum(speeds) / len(speeds)) if speeds else 0
-
-                def _to_int(key: str, default: int = 0) -> int:
-                    try:
-                        return int(float(obd_data.get(key, default) or default))
-                    except Exception:
-                        return default
-
-                # Platzhalter für GPS (nicht vorhanden)
+                rpm = _to_int(float(obd_data.get("RPM", 0) or 0))
+                
+                # Für jede Sekunde: Durchschnitt der Temperatur/Fuel aus dieser Sekunde
+                avg_coolant = _to_int(sum(coolants) / len(coolants)) if coolants else 0
+                avg_oil = _to_int(sum(oils) / len(oils)) if oils else 0
+                avg_fuel = _to_int(sum(fuels) / len(fuels)) if fuels else 0
+                
                 db.insert_log_entry(
                     auto_id=AUTO_ID,
                     speed=avg_speed,
-                    rpm=_to_int("RPM"),
-                    coolant_temp=_to_int("COOLANT"),
-                    fuel_level=_to_int("FUEL"),
+                    rpm=rpm,
+                    coolant_temp=avg_coolant,
+                    fuel_level=avg_fuel,
                     gps_latitude=0.0,
                     gps_longitude=0.0,
                 )
-                logger.info(f"Log gespeichert (avg_speed={avg_speed})")
-
+                logger.info(f"Log (1s): speed={avg_speed}, rpm={rpm}, coolant={avg_coolant}")
+                
                 speeds = []
-                last_log_time = now
+                coolants = []
+                oils = []
+                fuels = []
+                last_speed_log_time = now
 
             await asyncio.sleep(LOG_SAMPLE_INTERVAL)
         except Exception as e:
