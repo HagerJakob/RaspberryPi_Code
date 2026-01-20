@@ -291,7 +291,7 @@ export default function dashboard() {
 
         .value-row {
           display: grid;
-          grid-template-columns: 96px auto;
+          grid-template-columns: 110px auto;
           align-items: center;
           column-gap: 12px;
         }
@@ -299,7 +299,12 @@ export default function dashboard() {
         .value-number {
           font-size: 2.1rem;
           line-height: 1.05;
+          text-align: left;
+        }
+
+        .right-box .label-text {
           text-align: right;
+          width: 100%;
         }
         
         .value-glow { 
@@ -348,7 +353,7 @@ export default function dashboard() {
           </div>
         </div>
 
-        <div className="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box">
+        <div className="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box right-box">
           <div className="data-item">
             <div className="label-text">BATTERY</div>
             <div className="value-row">
