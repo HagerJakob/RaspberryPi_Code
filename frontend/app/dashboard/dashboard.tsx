@@ -344,7 +344,7 @@ export default function dashboard() {
 
       <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(255, 140, 43, 0.2)" }}>
 
-        <div className="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box">
+        <div className="absolute left-1 top-2 bottom-2 flex flex-col justify-between side-box">
           <div className="data-item">
             <div className="label-text">OIL TEMP</div>
             <div className="value-row">
@@ -368,7 +368,7 @@ export default function dashboard() {
           </div>
         </div>
 
-        <div className="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box right-box">
+        <div className="absolute right-1 top-2 bottom-2 flex flex-col justify-between side-box right-box">
           <div className="data-item">
             <div className="label-text">BATTERY</div>
             <div className="value-row">
