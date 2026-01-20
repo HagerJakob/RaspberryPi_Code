@@ -51,7 +51,11 @@ def start_bluetooth_server():
         print(f"[!] Server läuft trotzdem, aber ist eventuell nicht auffindbar")
 
     print(f"[+] Bluetooth-Server läuft auf Port {port}")
-    print(f"[+] Raspberry Pi MAC-Adresse: {bluetooth.read_local_bdaddr()[0]}")
+    try:
+        bdaddr = bluetooth.read_local_bdaddr()[0]
+        print(f"[+] Raspberry Pi MAC-Adresse: {bdaddr}")
+    except Exception:
+        print(f"[!] MAC-Adresse konnte nicht gelesen werden")
     print(f"[+] Warte auf Verbindungen von Windows Laptop...")
 
     try:
