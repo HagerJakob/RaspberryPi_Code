@@ -2,6 +2,7 @@
 """
 Bluetooth COM-Port Client für Windows Laptop
 Verbindet sich mit dem Raspberry Pi über COM-Port und empfängt die Datenbank
+Braucht nur pyserial - kein pybluez!
 """
 
 import sys
@@ -9,69 +10,26 @@ import os
 
 try:
     import serial
+    import serial.tools.list_ports
 except ImportError:
     print("pyserial nicht installiert. Installiere: pip install pyserial")
-    sys.exit(1)
-
-try:
-    import bluetooth
-except ImportError:
-    print("PyBluez nicht installiert. Installiere: pip install pybluez")
     sys.exit(1)
 
 
 def list_com_ports():
     """Listet verfügbare COM-Ports auf"""
-    import serial.tools.list_ports
-    
     ports = serial.tools.list_ports.comports()
-    bluetooth_ports = []
     
+    print("[+] Verfügbare COM-Ports:")
+    com_list = []
     for port in ports:
         print(f"    {port.device}: {port.description}")
-        if "Bluetooth" in port.description or "rfcomm" in port.description:
-            bluetooth_ports.append(port.device)
+        com_list.append(port.device)
     
-    return bluetooth_ports
+    return com_list
 
 
-def find_raspberry_pi():
-    """Sucht den Raspberry Pi in der Nähe"""
-    print("[*] Suche nach Raspberry Pi Bluetooth-Geräten...")
-    nearby_devices = bluetooth.discover_devices(lookup_names=True)
-
-    if not nearby_devices:
-        print("[-] Keine Bluetooth-Geräte gefunden!")
-        return None
-
-    print("\n[+] Gefundene Geräte:")
-    for i, (addr, name) in enumerate(nearby_devices, 1):
-        print(f"    {i}. {name} ({addr})")
-
-    choice = input("\nWähle Geräte-Nummer (oder MAC-Adresse): ").strip()
-
-    if choice.isdigit() and 1 <= int(choice) <= len(nearby_devices):
-        return nearby_devices[int(choice) - 1][0]
-    else:
-        return choice  # Annahme: MAC-Adresse eingegeben
-
-
-def create_rfcomm_binding(device_addr):
-    """Erstellt RFCOMM Binding (nur auf Linux/Mac nötig)"""
-    # Unter Windows wird dies automatisch gemacht
-    print(f"[*] Verbinde mit {device_addr} über RFCOMM...")
-    
-    try:
-        # Auf Windows wird der COM-Port automatisch erstellt
-        # Hier nur für Linux/Mac relevant
-        import platform
-        if platform.system() != "Windows":
-            os.system(f"sudo rfcomm bind /dev/rfcomm0 {device_addr} 1")
-    except Exception as e:
-        print(f"[!] RFCOMM Binding fehlgeschlagen: {e}")
-
-
-def connect_and_receive_via_comport(com_port, save_path="./app.db"):
+def connect_and_receive(com_port, save_path="./app.db"):
     """Verbindet sich über COM-Port mit dem Pi und empfängt die Datenbank"""
     print(f"\n[*] Verbinde mit {com_port}...")
 
@@ -85,7 +43,8 @@ def connect_and_receive_via_comport(com_port, save_path="./app.db"):
         size_bytes = ser.read(4)
 
         if len(size_bytes) < 4:
-            print("[-] Keine Größeinfo erhalten!")
+            print("[-] Keine Größeinfo erhalten! Verbindung fehlgeschlagen.")
+            print("[-] Prüfe ob der Raspberry Pi Server läuft!")
             ser.close()
             return False
 
@@ -128,42 +87,35 @@ def connect_and_receive_via_comport(com_port, save_path="./app.db"):
 
 
 if __name__ == "__main__":
-    import platform
+    print("=== Bluetooth Database Download (COM-Port) ===\n")
     
-    print("=== Bluetooth Database Download ===\n")
+    # Liste verfügbare COM-Ports
+    com_list = list_com_ports()
     
-    # Wähle COM-Port
-    print("[*] Verfügbare COM-Ports:")
-    bluetooth_ports = list_com_ports()
-    
-    if not bluetooth_ports:
-        print("\n[!] Kein Bluetooth COM-Port gefunden!")
-        print("[*] Suche Bluetooth-Geräte um Binding zu erstellen...")
-        
-        device = find_raspberry_pi()
-        if device:
-            create_rfcomm_binding(device)
-            
-            if platform.system() == "Windows":
-                print("[*] Bitte unter Einstellungen → Bluetooth den Pi koppeln")
-                print("[*] Dann prüfen Sie unter 'COM-Ports (COM & LPT)'")
-            
-            # Versuche erneut
-            print("\n[*] Verfügbare COM-Ports:")
-            bluetooth_ports = list_com_ports()
-    
-    if not bluetooth_ports:
-        print("[-] Keine Bluetooth COM-Ports gefunden. Bitte Pi koppeln!")
+    if not com_list:
+        print("\n[-] Keine COM-Ports gefunden!")
+        print("[*] Bitte verbinde den Raspberry Pi über Bluetooth:")
+        print("    1. Windows Einstellungen → Bluetooth & Geräte")
+        print("    2. Gerät hinzufügen → Wähle Raspberry Pi")
         sys.exit(1)
     
     # Wähle COM-Port
-    choice = input("\nWähle COM-Port Nummer (z.B. 1 für COM1): ").strip()
+    choice = input("\nWähle COM-Port Nummer (z.B. 3 für COM3): ").strip()
     
     if choice.isdigit():
         com_port = f"COM{choice}"
     else:
         com_port = choice
     
+    # Überprüfe ob Port existiert
+    if com_port not in com_list:
+        print(f"[-] {com_port} nicht gefunden!")
+        sys.exit(1)
+    
     # Verbinde und empfange
-    connect_and_receive_via_comport(com_port)
+    print()
+    if connect_and_receive(com_port):
+        print("\n[✓] Download erfolgreich!")
+    else:
+        print("\n[✗] Download fehlgeschlagen!")
 
