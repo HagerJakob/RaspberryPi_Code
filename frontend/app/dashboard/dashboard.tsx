@@ -293,13 +293,27 @@ export default function dashboard() {
           display: grid;
           grid-template-columns: 110px auto;
           align-items: center;
-          column-gap: 12px;
+          column-gap: 6px;
         }
 
         .value-number {
           font-size: 2.1rem;
           line-height: 1.05;
           text-align: left;
+        }
+
+        .right-box .value-row {
+          grid-template-columns: auto 110px;
+        }
+
+        .right-box .value-number {
+          grid-column: 2;
+          text-align: right;
+        }
+
+        .right-box .value-bar {
+          grid-column: 1;
+          justify-self: end;
         }
 
         .right-box .label-text {
