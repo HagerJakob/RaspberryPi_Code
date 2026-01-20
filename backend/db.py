@@ -34,7 +34,7 @@ class DatabaseConnection:
     
     def init_db(self):
         """Initialize database with tables from schema.sql"""
-        schema_path = Path(__file__).parent / "schema.sql"
+        schema_path = Path(__file__).parent / "db" / "schema.sql"
         
         if not schema_path.exists():
             raise FileNotFoundError(f"Schema file not found at {schema_path}")
