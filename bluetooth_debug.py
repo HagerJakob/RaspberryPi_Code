@@ -6,7 +6,11 @@ Debug-Script um zu sehen was auf dem COM-Port ankommt
 import serial
 import time
 
-com_port = input("COM-Port (z.B. COM5): ").strip()
+com_port = input("COM-Port (z.B. COM5 oder nur 5): ").strip()
+
+# Wenn nur Nummer eingegeben, dann COM hinzufügen
+if com_port.isdigit():
+    com_port = f"COM{com_port}"
 
 print(f"[*] Öffne {com_port}...")
 ser = serial.Serial(com_port, timeout=2)
