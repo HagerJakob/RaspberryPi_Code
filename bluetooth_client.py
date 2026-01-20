@@ -34,17 +34,23 @@ def connect_and_receive(com_port, save_path="./app.db"):
     print(f"\n[*] Verbinde mit {com_port}...")
 
     try:
-        # Verbinde mit COM-Port
-        ser = serial.Serial(com_port, timeout=10)
+        # Verbinde mit COM-Port mit langem Timeout
+        ser = serial.Serial(com_port, timeout=5)
         print("[+] Verbindung hergestellt!")
+        
+        # Kurz warten, damit Server bereit ist
+        import time
+        time.sleep(1)
 
         # Empfange Dateigrößeinfo (4 bytes)
         print("[*] Empfange Dateigrößeinfo...")
         size_bytes = ser.read(4)
 
         if len(size_bytes) < 4:
-            print("[-] Keine Größeinfo erhalten! Verbindung fehlgeschlagen.")
+            print(f"[-] Keine oder zu wenige Größeinfo erhalten! ({len(size_bytes)} bytes)")
+            print("[-] Verbindung fehlgeschlagen.")
             print("[-] Prüfe ob der Raspberry Pi Server läuft!")
+            print("[-] Prüfe auch ob COM-Port richtig ist!")
             ser.close()
             return False
 
@@ -67,7 +73,7 @@ def connect_and_receive(com_port, save_path="./app.db"):
                 chunk = ser.read(chunk_size)
 
                 if not chunk:
-                    print("[-] Verbindung unterbrochen!")
+                    print(f"\n[-] Verbindung unterbrochen bei {received}/{file_size} bytes!")
                     break
 
                 f.write(chunk)
@@ -77,12 +83,19 @@ def connect_and_receive(com_port, save_path="./app.db"):
                 progress = (received / file_size) * 100
                 print(f"[*] Fortschritt: {progress:.1f}% ({received}/{file_size} bytes)", end="\r")
 
-        print(f"\n[+] Datei erfolgreich gespeichert: {save_path}")
-        ser.close()
-        return True
+        if received == file_size:
+            print(f"\n[+] Datei erfolgreich gespeichert: {save_path}")
+            ser.close()
+            return True
+        else:
+            print(f"\n[-] Unvollständiger Download: {received}/{file_size} bytes")
+            ser.close()
+            return False
 
     except Exception as e:
         print(f"[-] Fehler: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 

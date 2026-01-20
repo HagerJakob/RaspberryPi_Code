@@ -44,11 +44,15 @@ def start_bluetooth_server():
             print(f"[+] Verbindung von {client_info} hergestellt!")
 
             try:
+                # Kurz warten, damit der Client bereit ist
+                import time
+                time.sleep(0.5)
+
                 # Prüfe ob DB-Datei existiert
                 if not os.path.exists(DB_PATH):
-                    error_msg = f"FEHLER: Datenbank nicht gefunden: {DB_PATH}\n"
-                    client_socket.send(error_msg.encode())
-                    print(f"[-] {error_msg.strip()}")
+                    error_msg = b"ERROR: Database not found\n"
+                    client_socket.send(error_msg)
+                    print(f"[-] Database nicht gefunden: {DB_PATH}")
                     client_socket.close()
                     continue
 
@@ -57,7 +61,9 @@ def start_bluetooth_server():
                 print(f"[*] Sende Datenbank ({file_size} bytes)...")
 
                 # Sende Größe zuerst (4 bytes, Little-Endian)
-                client_socket.send(file_size.to_bytes(4, byteorder="little"))
+                size_data = file_size.to_bytes(4, byteorder="little")
+                client_socket.sendall(size_data)
+                print(f"[+] Dateigrößeinfo gesendet: {file_size} bytes")
 
                 # Sende Dateiinhalt
                 sent = 0
@@ -66,7 +72,7 @@ def start_bluetooth_server():
                         chunk = f.read(4096)
                         if not chunk:
                             break
-                        client_socket.send(chunk)
+                        client_socket.sendall(chunk)
                         sent += len(chunk)
                         progress = (sent / file_size) * 100
                         print(f"[*] Fortschritt: {progress:.1f}%", end="\r")
@@ -75,8 +81,13 @@ def start_bluetooth_server():
 
             except Exception as e:
                 print(f"[-] Fehler beim Senden: {e}")
+                import traceback
+                traceback.print_exc()
             finally:
-                client_socket.close()
+                try:
+                    client_socket.close()
+                except:
+                    pass
 
     except KeyboardInterrupt:
         print("\n[*] Bluetooth-Server beendet")
