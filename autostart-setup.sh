@@ -47,7 +47,14 @@ done
 
 # Starte Browser im Vollbildmodus
 echo "$(date): Starte Browser..." >> $LOG_FILE
-DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium-browser --kiosk --no-first-run http://localhost:5173 >> $LOG_FILE 2>&1 &
+# Versuche verschiedene Chromium-Befehle
+if command -v chromium-browser &> /dev/null; then
+  DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium-browser --kiosk --no-first-run --disable-infobars http://localhost:5173 >> $LOG_FILE 2>&1 &
+elif command -v chromium &> /dev/null; then
+  DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium --kiosk --no-first-run --disable-infobars http://localhost:5173 >> $LOG_FILE 2>&1 &
+else
+  echo "$(date): WARNUNG - Chromium nicht gefunden!" >> $LOG_FILE
+fi
 
 echo "$(date): Dashboard-Startup abgeschlossen" >> $LOG_FILE
 EOF
