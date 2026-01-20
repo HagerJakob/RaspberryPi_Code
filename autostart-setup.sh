@@ -13,6 +13,9 @@ sudo tee /usr/local/bin/rpi-dashboard-start.sh > /dev/null << 'EOF'
 
 # Log-Datei für Debugging
 LOG_FILE="/var/log/rpi-dashboard-start.log"
+sudo touch $LOG_FILE
+sudo chown admin:admin $LOG_FILE
+sudo chmod 664 $LOG_FILE
 echo "$(date): Dashboard-Startup gestartet" >> $LOG_FILE
 
 # Warte kurz, bis das System vollständig hochgefahren ist
