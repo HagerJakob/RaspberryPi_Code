@@ -31,7 +31,6 @@ def start_bluetooth_server():
 
     # Bluetooth Socket erstellen
     server_socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-    server_socket.setsockopt(bluetooth.SOL_SOCKET, bluetooth.SO_REUSEADDR, 1)
     server_socket.bind(("", bluetooth.PORT_ANY))
     server_socket.listen(1)
 
