@@ -372,22 +372,22 @@ export default function dashboard() {
           <div className="data-item">
             <div className="label-text">BATTERY</div>
             <div className="value-row">
-              <div id="voltage" className="value-number neon-text font-bold value-glow">12.1V</div>
               <div id="voltage-bar" className="value-bar"></div>
+              <div id="voltage" className="value-number neon-text font-bold value-glow">12.1V</div>
             </div>
           </div>
           <div className="data-item">
             <div className="label-text">BOOST</div>
             <div className="value-row">
-              <div id="boost" className="value-number neon-text font-bold value-glow">1.1 bar</div>
               <div id="boost-bar" className="value-bar"></div>
+              <div id="boost" className="value-number neon-text font-bold value-glow">1.1 bar</div>
             </div>
           </div>
           <div className="data-item">
             <div className="label-text">OIL PRESS</div>
             <div className="value-row">
-              <div id="oilpress" className="value-number neon-text font-bold value-glow">0.3 bar</div>
               <div id="oilpress-bar" className="value-bar"></div>
+              <div id="oilpress" className="value-number neon-text font-bold value-glow">0.3 bar</div>
             </div>
           </div>
         </div>
