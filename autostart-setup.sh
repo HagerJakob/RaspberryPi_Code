@@ -18,8 +18,8 @@ echo "$(date): Dashboard-Startup gestartet" >> $LOG_FILE
 # Warte kurz, bis das System vollständig hochgefahren ist
 sleep 5
 
-# Home-Verzeichnis des Pi-Benutzers
-HOME_DIR="/home/pi"
+# Home-Verzeichnis des Admin-Benutzers
+HOME_DIR="/home/admin"
 cd $HOME_DIR
 
 # Alte Version löschen und neu clonen
@@ -47,7 +47,7 @@ done
 
 # Starte Browser im Vollbildmodus
 echo "$(date): Starte Browser..." >> $LOG_FILE
-DISPLAY=:0 XAUTHORITY=/home/pi/.Xauthority chromium-browser --kiosk --no-first-run http://localhost:5173 >> $LOG_FILE 2>&1 &
+DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium-browser --kiosk --no-first-run http://localhost:5173 >> $LOG_FILE 2>&1 &
 
 echo "$(date): Dashboard-Startup abgeschlossen" >> $LOG_FILE
 EOF
@@ -61,12 +61,13 @@ echo "✓ Startup-Script erstellt: /usr/local/bin/rpi-dashboard-start.sh"
 sudo tee /etc/systemd/system/rpi-dashboard.service > /dev/null << 'EOF'
 [Unit]
 Description=RaspberryPi Dashboard Autostart
-After=network-online.target graphical.target
+After=network-online.target docker.service graphical.target
 Wants=network-online.target
+Requires=docker.service
 
 [Service]
-Type=simple
-User=pi
+Type=forking
+User=root
 ExecStart=/usr/local/bin/rpi-dashboard-start.sh
 StandardOutput=journal
 StandardError=journal
@@ -80,9 +81,9 @@ EOF
 echo "✓ Systemd Service erstellt: /etc/systemd/system/rpi-dashboard.service"
 
 # Erstelle Desktop-Autostart als Alternative (für LXDE/XFCE)
-mkdir -p /home/pi/.config/autostart
+mkdir -p /home/admin/.config/autostart
 
-sudo tee /home/pi/.config/autostart/dashboard.desktop > /dev/null << 'EOF'
+sudo tee /home/admin/.config/autostart/dashboard.desktop > /dev/null << 'EOF'
 [Desktop Entry]
 Type=Application
 Name=Dashboard
@@ -92,10 +93,10 @@ AutoStart=true
 Terminal=false
 EOF
 
-sudo chown pi:pi /home/pi/.config/autostart/dashboard.desktop
-sudo chmod 644 /home/pi/.config/autostart/dashboard.desktop
+sudo chown admin:admin /home/admin/.config/autostart/dashboard.desktop
+sudo chmod 644 /home/admin/.config/autostart/dashboard.desktop
 
-echo "✓ Desktop-Autostart erstellt: /home/pi/.config/autostart/dashboard.desktop"
+echo "✓ Desktop-Autostart erstellt: /home/admin/.config/autostart/dashboard.desktop"
 
 # Systemd Service aktivieren und starten
 sudo systemctl daemon-reload
@@ -103,13 +104,13 @@ sudo systemctl enable rpi-dashboard.service
 echo "✓ Service aktiviert"
 
 # Berechtigungen setzen
-sudo chown pi:pi /usr/local/bin/rpi-dashboard-start.sh
+sudo chown admin:admin /usr/local/bin/rpi-dashboard-start.sh
 sudo chmod 755 /usr/local/bin/rpi-dashboard-start.sh
 
 # Sudoers-Datei für docker-Befehle ohne Passwort (optional, aber empfohlen)
-if ! sudo grep -q "pi ALL=(ALL) NOPASSWD.*docker" /etc/sudoers.d/docker-pi 2>/dev/null; then
-  echo "pi ALL=(ALL) NOPASSWD: /usr/bin/docker" | sudo tee /etc/sudoers.d/docker-pi > /dev/null
-  sudo chmod 440 /etc/sudoers.d/docker-pi
+if ! sudo grep -q "admin ALL=(ALL) NOPASSWD.*docker" /etc/sudoers.d/docker-admin 2>/dev/null; then
+  echo "admin ALL=(ALL) NOPASSWD: /usr/bin/docker" | sudo tee /etc/sudoers.d/docker-admin > /dev/null
+  sudo chmod 440 /etc/sudoers.d/docker-admin
   echo "✓ Sudo-Einträge für docker konfiguriert"
 fi
 
