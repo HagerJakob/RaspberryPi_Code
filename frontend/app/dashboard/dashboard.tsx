@@ -235,7 +235,7 @@ export default function dashboard() {
       <style>{`
         /* Background with image */
         .carbon { 
-          background: #000 url('../background/background.png') no-repeat center/cover;
+          background: #000;
           position: relative;
           background-size: cover;
           background-position: center;
