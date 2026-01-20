@@ -36,19 +36,22 @@ def start_bluetooth_server():
 
     port = server_socket.getsockname()[1]
 
-    # Service registrieren
-    bluetooth.advertise_service(
-        server_socket,
-        SERVICE_NAME,
-        service_id=SERVICE_UUID,
-        service_classes=[bluetooth.SERIAL_PORT_CLASS],
-        profiles=[bluetooth.SERIAL_PORT_PROFILE],
-        protocols=[bluetooth.OBEX_UUID],
-        description=f"Sendet die OBD-Datenbank",
-        provider="RaspberryPi",
-    )
+    # Service registrieren (optional - vereinfacht)
+    try:
+        bluetooth.advertise_service(
+            server_socket,
+            SERVICE_NAME,
+            service_id=SERVICE_UUID,
+            service_classes=[bluetooth.SERIAL_PORT_CLASS],
+            profiles=[bluetooth.SERIAL_PORT_PROFILE],
+        )
+        print(f"[+] Service registriert")
+    except Exception as e:
+        print(f"[!] SDP-Advertising fehlgeschlagen (ignoriert): {e}")
+        print(f"[!] Server läuft trotzdem, aber ist eventuell nicht auffindbar")
 
     print(f"[+] Bluetooth-Server läuft auf Port {port}")
+    print(f"[+] Raspberry Pi MAC-Adresse: {bluetooth.read_local_bdaddr()[0]}")
     print(f"[+] Warte auf Verbindungen von Windows Laptop...")
 
     try:
