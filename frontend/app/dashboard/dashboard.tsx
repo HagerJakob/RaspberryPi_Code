@@ -276,10 +276,11 @@ export default function dashboard() {
         
         .side-box { 
           margin-top: 10px; 
-          display: flex; 
-          flex-direction: column; 
-          justify-content: space-around; 
-          height: 90%; 
+          display: grid; 
+          grid-template-rows: repeat(3, 1fr);
+          align-items: center;
+          row-gap: 0;
+          height: calc(100% - 20px);
         }
         
         .data-item {
@@ -293,7 +294,7 @@ export default function dashboard() {
           display: grid;
           grid-template-columns: 110px auto;
           align-items: center;
-          column-gap: 6px;
+          column-gap: 4px;
         }
 
         .value-number {
