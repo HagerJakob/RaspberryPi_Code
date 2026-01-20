@@ -18,6 +18,16 @@ echo "$(date): Dashboard-Startup gestartet" >> $LOG_FILE
 # Warte kurz, bis das System vollständig hochgefahren ist
 sleep 5
 
+# Warte auf laufenden X-Server / Display (max 30 Sekunden)
+for i in {1..30}; do
+  if [ -S /tmp/.X11-unix/X0 ]; then
+    echo "$(date): X-Server ist bereit" >> $LOG_FILE
+    break
+  fi
+  echo "$(date): Warte auf X-Server... ($i/30)" >> $LOG_FILE
+  sleep 1
+done
+
 # Home-Verzeichnis des Admin-Benutzers
 HOME_DIR="/home/admin"
 cd $HOME_DIR
@@ -45,13 +55,13 @@ for i in {1..30}; do
   sleep 1
 done
 
-# Starte Browser im Vollbildmodus
+# Starte Browser im Vollbildmodus (als admin, damit DISPLAY/XAUTHORITY passen)
 echo "$(date): Starte Browser..." >> $LOG_FILE
 # Versuche verschiedene Chromium-Befehle
 if command -v chromium-browser &> /dev/null; then
-  DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium-browser --kiosk --no-first-run --disable-infobars http://localhost:5173 >> $LOG_FILE 2>&1 &
+  su - admin -c "DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium-browser --kiosk --no-first-run --disable-infobars http://localhost:5173" >> $LOG_FILE 2>&1 &
 elif command -v chromium &> /dev/null; then
-  DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium --kiosk --no-first-run --disable-infobars http://localhost:5173 >> $LOG_FILE 2>&1 &
+  su - admin -c "DISPLAY=:0 XAUTHORITY=/home/admin/.Xauthority chromium --kiosk --no-first-run --disable-infobars http://localhost:5173" >> $LOG_FILE 2>&1 &
 else
   echo "$(date): WARNUNG - Chromium nicht gefunden!" >> $LOG_FILE
 fi
@@ -73,8 +83,10 @@ Wants=network-online.target
 Requires=docker.service
 
 [Service]
-Type=forking
-User=root
+Type=simple
+User=admin
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/admin/.Xauthority
 ExecStart=/usr/local/bin/rpi-dashboard-start.sh
 StandardOutput=journal
 StandardError=journal
