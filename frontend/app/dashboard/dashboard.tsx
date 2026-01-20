@@ -24,6 +24,17 @@ export default function dashboard() {
     rpmGrad.addColorStop(0.5, "#FF7A18");
     rpmGrad.addColorStop(1, "#E6761F");
 
+    const clampPercent = (value: number) => {
+      if (!Number.isFinite(value)) return 0;
+      return Math.max(0, Math.min(value, 100));
+    };
+
+    const setBarLevel = (bar: HTMLElement | null, percent: number) => {
+      if (!bar) return;
+      const level = clampPercent(percent) / 100;
+      bar.style.transform = `scaleY(${level})`;
+    };
+
     function drawRpmScale() {
       ctx.save();
       ctx.lineWidth = 2.5;
@@ -89,7 +100,7 @@ export default function dashboard() {
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, end);
       ctx.strokeStyle = "rgba(42, 47, 54, 0.5)";
-      ctx.lineWidth = 45;
+      ctx.lineWidth = 60;
       ctx.stroke();
 
       // RPM gradient arc
@@ -97,7 +108,7 @@ export default function dashboard() {
       const rpmEnd = start + (end - start) * p;
       ctx.save();
       ctx.strokeStyle = "#FF8C2B";
-      ctx.lineWidth = 45;
+      ctx.lineWidth = 60;
       ctx.shadowColor = "rgba(255, 122, 24, 0.3)";
       ctx.shadowBlur = 8;
       ctx.beginPath();
@@ -149,20 +160,20 @@ export default function dashboard() {
           const el = document.getElementById("temp");
           const bar = document.getElementById("temp-bar");
           if (el) el.textContent = data.COOLANT;
-          if (bar) bar.style.width = Math.max(0, Math.min(parseInt(data.COOLANT) / 120 * 100, 100)) + "%";
+          setBarLevel(bar, (parseInt(data.COOLANT) / 120) * 100);
         }
         if (data.OIL !== undefined) {
           const el = document.getElementById("oil");
           const bar = document.getElementById("oil-bar");
           if (el) el.textContent = data.OIL;
-          if (bar) bar.style.width = Math.max(0, Math.min(parseInt(data.OIL) / 120 * 100, 100)) + "%";
+          setBarLevel(bar, (parseInt(data.OIL) / 120) * 100);
         }
         if (data.FUEL !== undefined) {
           const el = document.getElementById("fuel");
           const bar = document.getElementById("fuel-bar");
           if (el) el.textContent = data.FUEL;
           // FUEL is in % (0-100)
-          if (bar) bar.style.width = Math.max(0, Math.min(parseInt(data.FUEL), 100)) + "%";
+          setBarLevel(bar, parseInt(data.FUEL));
         }
         if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
           const el = document.getElementById("voltage");
@@ -170,33 +181,25 @@ export default function dashboard() {
           const voltage = parseFloat(data.VOLTAGE || data.BATTERY);
           if (el) el.textContent = voltage;
           // VOLTAGE: 11.8V (0%) to 12.3V (100%)
-          if (bar) {
-            const vMin = 11.8;
-            const vMax = 12.3;
-            const vPercent = ((voltage - vMin) / (vMax - vMin)) * 100;
-            bar.style.width = Math.max(0, Math.min(vPercent, 100)) + "%";
-          }
+          const vMin = 11.8;
+          const vMax = 12.3;
+          const vPercent = ((voltage - vMin) / (vMax - vMin)) * 100;
+          setBarLevel(bar, vPercent);
         }
         if (data.BOOST !== undefined) {
           const el = document.getElementById("boost");
           const bar = document.getElementById("boost-bar");
           if (el) el.textContent = data.BOOST;
           // BOOST: 0-2 bar
-          if (bar) bar.style.width = Math.max(0, Math.min(parseFloat(data.BOOST) / 2 * 100, 100)) + "%";
+          setBarLevel(bar, (parseFloat(data.BOOST) / 2) * 100);
         }
         if (data.OILPRESS !== undefined) {
           const el = document.getElementById("oilpress");
           const bar = document.getElementById("oilpress-bar");
           if (el) el.textContent = data.OILPRESS;
           // OIL PRESSURE: 0-5 bar
-          if (bar) bar.style.width = Math.max(0, Math.min(parseFloat(data.OILPRESS) / 5 * 100, 100)) + "%";
+          setBarLevel(bar, (parseFloat(data.OILPRESS) / 5) * 100);
         }
-
-        // Downshift & Upshift indicators
-        const down = document.getElementById("downshift");
-        const up = document.getElementById("upshift");
-        if (down) down.style.display = rpm < 1000 ? "block" : "none";
-        if (up) up.style.display = rpm > 6000 ? "block" : "none";
 
         if (rpm !== oldRpm || speed !== oldSpeed) {
           needsRedraw = true;
@@ -261,12 +264,14 @@ export default function dashboard() {
         }
         
         .value-bar {
-          height: 6px;
-          background: linear-gradient(90deg, #FF8C2B 0%, #E6761F 100%);
-          border-radius: 3px;
-          margin-top: 6px;
-          transition: width 0.2s ease-out;
+          width: 12px;
+          height: 52px;
+          background: linear-gradient(180deg, #FF8C2B 0%, #E6761F 100%);
+          border-radius: 10px;
+          transition: transform 0.2s ease-out;
           box-shadow: 0 0 8px rgba(255, 140, 43, 0.3);
+          transform-origin: bottom;
+          transform: scaleY(0);
         }
         
         .side-box { 
@@ -280,7 +285,19 @@ export default function dashboard() {
         .data-item {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
+          align-items: flex-start;
+        }
+
+        .value-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .value-number {
+          font-size: 2.1rem;
+          line-height: 1.05;
         }
         
         .value-glow { 
@@ -293,40 +310,12 @@ export default function dashboard() {
           filter: brightness(1.15); 
         }
         
-        .shift-arrow { 
-          position: absolute; 
-          margin-top: -20px; 
-          font-size: 3.5rem; 
-          font-weight: bold; 
-          z-index: 20; 
-          user-select: none; 
-          pointer-events: none; 
-          transform: translateY(-50%); 
-          top: 50%; 
-          text-shadow: 0 0 12px; 
-          filter: drop-shadow(0 0 6px); 
-        }
-        
-        #downshift { 
-          left: 220px; 
-          color: #FF3B30; 
-          display: none; 
-          text-shadow: 0 0 12px #FF3B30; 
-        }
-        
-        #upshift { 
-          right: 240px; 
-          color: #34C759; 
-          display: none; 
-          text-shadow: 0 0 12px #34C759; 
-        }
-        
         .label-text { 
           text-transform: uppercase; 
           letter-spacing: 0.15em; 
-          font-size: 0.65rem; 
+          font-size: 0.8rem; 
           color: #9AA3AE; 
-          font-weight: 600; 
+          font-weight: 700; 
           text-shadow: none;
         }
       `}</style>
@@ -334,41 +323,50 @@ export default function dashboard() {
       <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(255, 140, 43, 0.2)" }}>
 
         <div className="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box">
-          <div className="data-item space-y-1">
+          <div className="data-item">
             <div className="label-text">OIL TEMP</div>
-            <div id="oil" className="neon-text text-3xl font-bold value-glow">60°C</div>
-            <div id="oil-bar" className="value-bar"></div>
+            <div className="value-row">
+              <div id="oil" className="value-number neon-text font-bold value-glow">60°C</div>
+              <div id="oil-bar" className="value-bar"></div>
+            </div>
           </div>
-          <div className="data-item space-y-1">
+          <div className="data-item">
             <div className="label-text">FUEL</div>
-            <div id="fuel" className="neon-text text-3xl font-bold value-glow">73%</div>
-            <div id="fuel-bar" className="value-bar"></div>
+            <div className="value-row">
+              <div id="fuel" className="value-number neon-text font-bold value-glow">73%</div>
+              <div id="fuel-bar" className="value-bar"></div>
+            </div>
           </div>
-          <div className="data-item space-y-1">
+          <div className="data-item">
             <div className="label-text">COOLANT</div>
-            <div id="temp" className="neon-text text-3xl font-bold value-glow">20°C</div>
-            <div id="temp-bar" className="value-bar"></div>
+            <div className="value-row">
+              <div id="temp" className="value-number neon-text font-bold value-glow">20°C</div>
+              <div id="temp-bar" className="value-bar"></div>
+            </div>
           </div>
         </div>
 
-        <div id="downshift" className="shift-arrow">⬇</div>
-        <div id="upshift" className="shift-arrow">⬆</div>
-
         <div className="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box">
-          <div className="data-item space-y-1">
+          <div className="data-item">
             <div className="label-text">BATTERY</div>
-            <div id="voltage" className="neon-text text-3xl font-bold value-glow">12.1V</div>
-            <div id="voltage-bar" className="value-bar"></div>
+            <div className="value-row">
+              <div id="voltage" className="value-number neon-text font-bold value-glow">12.1V</div>
+              <div id="voltage-bar" className="value-bar"></div>
+            </div>
           </div>
-          <div className="data-item space-y-1">
+          <div className="data-item">
             <div className="label-text">BOOST</div>
-            <div id="boost" className="neon-text text-3xl font-bold value-glow">1.1 bar</div>
-            <div id="boost-bar" className="value-bar"></div>
+            <div className="value-row">
+              <div id="boost" className="value-number neon-text font-bold value-glow">1.1 bar</div>
+              <div id="boost-bar" className="value-bar"></div>
+            </div>
           </div>
-          <div className="data-item space-y-1">
+          <div className="data-item">
             <div className="label-text">OIL PRESS</div>
-            <div id="oilpress" className="neon-text text-3xl font-bold value-glow">0.3 bar</div>
-            <div id="oilpress-bar" className="value-bar"></div>
+            <div className="value-row">
+              <div id="oilpress" className="value-number neon-text font-bold value-glow">0.3 bar</div>
+              <div id="oilpress-bar" className="value-bar"></div>
+            </div>
           </div>
         </div>
 
