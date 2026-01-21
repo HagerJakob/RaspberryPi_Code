@@ -20,9 +20,9 @@ export default function dashboard() {
     const end = Math.PI * 1.95;
 
     const rpmGrad = ctx.createLinearGradient(cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
-    rpmGrad.addColorStop(0, "#FF8C2B");
-    rpmGrad.addColorStop(0.5, "#FF7A18");
-    rpmGrad.addColorStop(1, "#E6761F");
+    rpmGrad.addColorStop(0, "#5DADE2");
+    rpmGrad.addColorStop(0.5, "#00CED1");
+    rpmGrad.addColorStop(1, "#20B2AA");
 
     const clampPercent = (value: number) => {
       if (!Number.isFinite(value)) return 0;
@@ -38,7 +38,7 @@ export default function dashboard() {
     function drawRpmScale() {
       ctx.save();
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(255, 140, 43, 0.6)";
+      ctx.strokeStyle = "rgba(32, 178, 170, 0.6)";
       ctx.fillStyle = "#EDEFF2";
       ctx.font = "bold 18px 'Arial'";
       ctx.textAlign = "center";
@@ -53,7 +53,7 @@ export default function dashboard() {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
-        ctx.shadowColor = "rgba(255, 140, 43, 0.3)";
+        ctx.shadowColor = "rgba(0, 206, 209, 0.3)";
         ctx.shadowBlur = 3;
         ctx.fillText(String(i), cx + Math.cos(a) * (rOuter + 55), cy + Math.sin(a) * (rOuter + 55));
         ctx.shadowBlur = 0;
@@ -65,7 +65,7 @@ export default function dashboard() {
     function drawSpeedScale() {
       ctx.save();
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(255, 140, 43, 0.5)";
+      ctx.strokeStyle = "rgba(0, 206, 209, 0.5)";
       ctx.fillStyle = "#9AA3AE";
       ctx.font = "bold 15px 'Arial'";
       ctx.textAlign = "center";
@@ -82,7 +82,7 @@ export default function dashboard() {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
-        ctx.shadowColor = "rgba(255, 140, 43, 0.2)";
+        ctx.shadowColor = "rgba(93, 173, 226, 0.2)";
         ctx.shadowBlur = 2;
         ctx.fillText(String(val), cx + Math.cos(a) * (rInner + 11), cy + Math.sin(a) * (rInner + 11));
         ctx.shadowBlur = 0;
@@ -107,33 +107,50 @@ export default function dashboard() {
       const p = Math.min(rpm / 8000, 1);
       const rpmEnd = start + (end - start) * p;
       ctx.save();
-      ctx.strokeStyle = "#FF8C2B";
+      ctx.strokeStyle = "#00CED1";
       ctx.lineWidth = 60;
-      ctx.shadowColor = "rgba(255, 122, 24, 0.3)";
+      ctx.shadowColor = "rgba(0, 206, 209, 0.3)";
       ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, rpmEnd);
       ctx.stroke();
       ctx.restore();
 
-      // Speed needle
+      // Speed needle - spitzer Pfeil
       const sp = Math.min(speed / 255, 1);
       const ang = start + (end - start) * sp;
+      
+      // Berechne Pfeilspitze
+      const tipX = cx + Math.cos(ang) * rInner;
+      const tipY = cy + Math.sin(ang) * rInner;
+      
+      // Berechne Basis-Punkte (perpendikular zum Pfeil)
+      const baseWidth = 8;
+      const baseLength = 30;
+      const perpAngle = ang + Math.PI / 2;
+      
+      const base1X = cx + Math.cos(perpAngle) * baseWidth - Math.cos(ang) * baseLength;
+      const base1Y = cy + Math.sin(perpAngle) * baseWidth - Math.sin(ang) * baseLength;
+      const base2X = cx - Math.cos(perpAngle) * baseWidth - Math.cos(ang) * baseLength;
+      const base2Y = cy - Math.sin(perpAngle) * baseWidth - Math.sin(ang) * baseLength;
+      
+      // Zeichne Pfeil als gefülltes Dreieck
       ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(ang) * rInner, cy + Math.sin(ang) * rInner);
-      ctx.strokeStyle = "#FF7A18";
-      ctx.lineWidth = 5;
-      ctx.shadowColor = "rgba(255, 122, 24, 0.5)";
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(base1X, base1Y);
+      ctx.lineTo(base2X, base2Y);
+      ctx.closePath();
+      ctx.fillStyle = "#00CED1";
+      ctx.shadowColor = "rgba(0, 206, 209, 0.5)";
       ctx.shadowBlur = 6;
-      ctx.stroke();
+      ctx.fill();
 
       // Speed value
       ctx.font = "small-caps bold 120px 'Verdana'";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#EDEFF2";
-      ctx.shadowColor = "rgba(255, 122, 24, 0.3)";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.shadowColor = "rgba(0, 206, 209, 0.3)";
       ctx.shadowBlur = 8;
       ctx.fillText(String(speed), cx, cy - 140);
     }
@@ -247,7 +264,7 @@ export default function dashboard() {
           content: ''; 
           position: absolute; 
           inset: 0; 
-          background: linear-gradient(135deg, rgba(255, 140, 43, 0.03) 0%, rgba(255, 140, 43, 0.01) 100%); 
+          background: linear-gradient(135deg, rgba(0, 206, 209, 0.03) 0%, rgba(93, 173, 226, 0.01) 100%); 
           pointer-events: none; 
           border-radius: 20px;
         }
@@ -255,23 +272,25 @@ export default function dashboard() {
         canvas { 
           image-rendering: optimizeSpeed; 
           image-rendering: crisp-edges; 
-          filter: drop-shadow(0 0 8px rgba(255, 122, 24, 0.2)); 
+          filter: drop-shadow(0 0 8px rgba(0, 206, 209, 0.2)); 
         }
         
         .neon-text { 
-          text-shadow: 0 0 8px rgba(255, 122, 24, 0.4), 0 0 16px rgba(255, 140, 43, 0.2); 
-          color: #FF8C2B; 
+          text-shadow: 0 0 8px rgba(0, 206, 209, 0.4), 0 0 16px rgba(93, 173, 226, 0.2); 
+          color: #00CED1; 
         }
         
         .value-bar {
-          width: 12px;
-          height: 52px;
-          background: linear-gradient(180deg, #FF8C2B 0%, #E6761F 100%);
-          border-radius: 10px;
-          transition: transform 0.2s ease-out;
-          box-shadow: 0 0 8px rgba(255, 140, 43, 0.3);
-          transform-origin: bottom;
-          transform: scaleY(0);
+  width: 12px;
+  height: 52px;
+  background: linear-gradient(180deg, #5DADE2 0%, #20B2AA 100%);
+  border-radius: 10px;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  box-shadow: 0 0 8px rgba(0, 206, 209, 0.3);
+}
+        
+        .side-box.right-box .value-bar {
         }
         
         .side-box { 
@@ -291,33 +310,38 @@ export default function dashboard() {
         }
 
         .value-row {
-          display: grid;
-          grid-template-columns: 110px auto;
-          align-items: center;
-          column-gap: 4px;
-        }
+  display: grid;
+  grid-template-columns: auto 12px;
+  align-items: center;
+  column-gap: 20px; /* <<< HIER der Abstand */
+}
 
         .value-number {
           font-size: 2.1rem;
           line-height: 1.05;
           text-align: left;
+          justify-self: start;
         }
 
-        .right-box .value-row {
-          grid-template-columns: auto 110px;
+        .side-box.right-box .data-item {
         }
 
-        .right-box .value-number {
+        .side-box.right-box .value-row {
+  grid-template-columns: 12px auto;
+  column-gap: 20px;
+}
+
+        .side-box.right-box .value-number {
           grid-column: 2;
           text-align: right;
-        }
-
-        .right-box .value-bar {
-          grid-column: 1;
           justify-self: end;
         }
 
-        .right-box .label-text {
+        .side-box.right-box .value-bar {
+          grid-column: 1;
+        }
+
+        .side-box.right-box .label-text {
           text-align: right;
           width: 100%;
         }
@@ -327,7 +351,7 @@ export default function dashboard() {
         }
         
         .value-glow:hover { 
-          text-shadow: 0 0 12px #FF8C2B, 0 0 24px #FF7A18; 
+          text-shadow: 0 0 12px #00CED1, 0 0 24px #5DADE2; 
           transform: scale(1.05); 
           filter: brightness(1.15); 
         }
@@ -342,7 +366,7 @@ export default function dashboard() {
         }
       `}</style>
 
-      <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(255, 140, 43, 0.2)" }}>
+      <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(0, 206, 209, 0.2)" }}>
 
         <div className="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box">
           <div className="data-item">
