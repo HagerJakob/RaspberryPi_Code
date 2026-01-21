@@ -94,6 +94,7 @@ export default function dashboard() {
     }
 
     function drawGauge() {
+      if (!canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawRpmScale();
       drawSpeedScale();
@@ -277,11 +278,9 @@ export default function dashboard() {
   return (
     <div className="w-full h-full flex justify-center items-center bg-gray-900">
       <style>{`
-        .carbon {
+        .carbon { 
           background: #000;
           position: relative;
-          background-size: cover;
-          background-position: center;
           border-radius: 20px;
         }
         
