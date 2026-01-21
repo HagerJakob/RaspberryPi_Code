@@ -1,7 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function dashboard() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [currentTime, setCurrentTime] = useState<string>("--:--:--");
 
   useEffect(() => {
     const canvas = canvasRef.current || document.getElementById("gauge") as HTMLCanvasElement | null;
@@ -31,8 +33,8 @@ export default function dashboard() {
 
     const setBarLevel = (bar: HTMLElement | null, percent: number) => {
       if (!bar) return;
-      const level = clampPercent(percent) / 100;
-      bar.style.transform = `scaleY(${level})`;
+      const level = clampPercent(percent);
+      bar.style.height = `${level}%`;
     };
 
     function drawRpmScale() {
@@ -161,12 +163,37 @@ export default function dashboard() {
     const wsUrl = `${proto}://${host}:5000/ws`;
     const ws = new WebSocket(wsUrl);
 
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket disconnected");
+      setIsConnected(false);
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      setIsConnected(false);
+    };
+
     let animationId: number;
     let needsRedraw = true;
 
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data);
+        
+        // Update connection status based on UART connection
+        if (data.UART_CONNECTED !== undefined) {
+          setIsConnected(data.UART_CONNECTED);
+        }
+
+        // Update current time from Pi if present
+        if (data.TIME) {
+          setCurrentTime(String(data.TIME));
+        }
+        
         const oldRpm = rpm;
         const oldSpeed = speed;
         
@@ -176,19 +203,19 @@ export default function dashboard() {
         if (data.COOLANT !== undefined) {
           const el = document.getElementById("temp");
           const bar = document.getElementById("temp-bar");
-          if (el) el.textContent = data.COOLANT;
+          if (el) el.innerHTML = `${data.COOLANT}<span class="unit">°C</span>`;
           setBarLevel(bar, (parseInt(data.COOLANT) / 120) * 100);
         }
         if (data.OIL !== undefined) {
           const el = document.getElementById("oil");
           const bar = document.getElementById("oil-bar");
-          if (el) el.textContent = data.OIL;
+          if (el) el.innerHTML = `${data.OIL}<span class="unit">°C</span>`;
           setBarLevel(bar, (parseInt(data.OIL) / 120) * 100);
         }
         if (data.FUEL !== undefined) {
           const el = document.getElementById("fuel");
           const bar = document.getElementById("fuel-bar");
-          if (el) el.textContent = data.FUEL;
+          if (el) el.innerHTML = `${data.FUEL}<span class="unit">%</span>`;
           // FUEL is in % (0-100)
           setBarLevel(bar, parseInt(data.FUEL));
         }
@@ -196,7 +223,7 @@ export default function dashboard() {
           const el = document.getElementById("voltage");
           const bar = document.getElementById("voltage-bar");
           const voltage = parseFloat(data.VOLTAGE || data.BATTERY);
-          if (el) el.textContent = voltage;
+          if (el) el.innerHTML = `${voltage}<span class="unit">V</span>`;
           // VOLTAGE: 11.8V (0%) to 12.3V (100%)
           const vMin = 11.8;
           const vMax = 12.3;
@@ -206,14 +233,14 @@ export default function dashboard() {
         if (data.BOOST !== undefined) {
           const el = document.getElementById("boost");
           const bar = document.getElementById("boost-bar");
-          if (el) el.textContent = data.BOOST;
+          if (el) el.innerHTML = `${data.BOOST}<span class="unit">bar</span>`;
           // BOOST: 0-2 bar
           setBarLevel(bar, (parseFloat(data.BOOST) / 2) * 100);
         }
         if (data.OILPRESS !== undefined) {
           const el = document.getElementById("oilpress");
           const bar = document.getElementById("oilpress-bar");
-          if (el) el.textContent = data.OILPRESS;
+          if (el) el.innerHTML = `${data.OILPRESS}<span class="unit">bar</span>`;
           // OIL PRESSURE: 0-5 bar
           setBarLevel(bar, (parseFloat(data.OILPRESS) / 5) * 100);
         }
@@ -250,13 +277,11 @@ export default function dashboard() {
   return (
     <div className="w-full h-full flex justify-center items-center bg-gray-900">
       <style>{`
-        /* Background with image */
-        .carbon { 
+        .carbon {
           background: #000;
           position: relative;
           background-size: cover;
           background-position: center;
-          background-attachment: fixed;
           border-radius: 20px;
         }
         
@@ -275,145 +300,217 @@ export default function dashboard() {
           filter: drop-shadow(0 0 8px rgba(0, 206, 209, 0.2)); 
         }
         
-        .neon-text { 
-          text-shadow: 0 0 8px rgba(0, 206, 209, 0.4), 0 0 16px rgba(93, 173, 226, 0.2); 
-          color: #00CED1; 
+        /* Widget Card Design */
+        .metric-widget {
+          background: linear-gradient(135deg, rgba(20, 30, 40, 0.5) 0%, rgba(15, 25, 35, 0.7) 100%);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(0, 206, 209, 0.25);
+          border-radius: 12px;
+          padding: 14px 16px;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 
+            0 4px 16px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(0, 206, 209, 0.1);
+          transition: all 0.2s ease;
         }
         
-        .value-bar {
-          width: 12px;
-          height: 52px;
-          background: linear-gradient(180deg, #5DADE2 0%, #20B2AA 100%);
-          border-radius: 10px;
-          transform-origin: bottom;
-          transform: scaleY(0);
-          box-shadow: 0 0 8px rgba(0, 206, 209, 0.3);
+        .metric-widget::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(0, 206, 209, 0.05) 0%, transparent 50%);
+          pointer-events: none;
         }
         
-        .side-box { 
-          margin-top: 10px; 
-          display: grid; 
-          grid-template-rows: repeat(3, 1fr);
+        .metric-widget:hover {
+          border-color: rgba(0, 206, 209, 0.4);
+          box-shadow: 
+            0 6px 20px rgba(0, 206, 209, 0.15),
+            inset 0 1px 0 rgba(0, 206, 209, 0.15);
+          transform: translateY(-1px);
+        }
+        
+        .widget-label {
+          font-size: 0.9rem;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: rgba(154, 163, 174, 0.8);
+          margin-bottom: 8px;
+          display: flex;
           align-items: center;
-          row-gap: 0;
-          height: calc(100% - 20px);
+          gap: 6px;
         }
         
-        .data-item {
+        .widget-label::before {
+          content: '';
+          width: 2px;
+          height: 10px;
+          background: linear-gradient(180deg, #00CED1 0%, #5DADE2 100%);
+          border-radius: 2px;
+          box-shadow: 0 0 6px rgba(0, 206, 209, 0.5);
+        }
+        
+        .widget-content {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        
+        .widget-value {
+          font-size: 2.25rem;
+          font-weight: 700;
+          line-height: 1;
+          color: #00CED1;
+          text-shadow: 
+            0 0 10px rgba(0, 206, 209, 0.5),
+            0 0 20px rgba(93, 173, 226, 0.3);
+        }
+        
+        .widget-value .unit {
+          font-size: 1.25rem;
+          font-weight: 500;
+          margin-left: 4px;
+          opacity: 0.8;
+        }
+        
+        .widget-bar-container {
+          position: relative;
+          width: 12px;
+          height: 48px;
+          background: rgba(20, 30, 40, 0.6);
+          border-radius: 6px;
+          overflow: hidden;
+          border: 1px solid rgba(0, 206, 209, 0.15);
+          box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .widget-bar-fill {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 0%;
+          background: linear-gradient(180deg, #5DADE2 0%, #00CED1 50%, #20B2AA 100%);
+          box-shadow: 0 0 12px rgba(0, 206, 209, 0.6);
+          transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .widgets-container {
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          align-items: flex-start;
-        }
-
-        .value-row {
-          display: grid;
-          grid-template-columns: auto 12px;
-          align-items: center;
-          column-gap: 20px;
-        }
-
-        .value-number {
-          font-size: 2.1rem;
-          line-height: 1.05;
-          text-align: left;
-          justify-self: start;
-        }
-
-        .side-box.right-box .data-item {
-        }
-
-        .side-box.right-box .value-row {
-          grid-template-columns: 12px auto;
-          column-gap: 20px;
-        }
-
-        .side-box.right-box .value-number {
-          grid-column: 2;
-          text-align: right;
-          justify-self: end;
-        }
-
-        .side-box.right-box .value-bar {
-          grid-column: 1;
-        }
-
-        .side-box.right-box .label-text {
-          text-align: right;
-          width: 100%;
-        }
-        
-        .value-glow { 
-          transition: all 0.15s ease-in-out; 
-        }
-        
-        .value-glow:hover { 
-          text-shadow: 0 0 12px #00CED1, 0 0 24px #5DADE2; 
-          transform: scale(1.05); 
-          filter: brightness(1.15); 
-        }
-        
-        .label-text { 
-          text-transform: uppercase; 
-          letter-spacing: 0.15em; 
-          font-size: 0.8rem; 
-          color: #9AA3AE; 
-          font-weight: 700; 
-          text-shadow: none;
+          gap: 10px;
         }
       `}</style>
 
       <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(0, 206, 209, 0.2)" }}>
-
-        <div className="absolute left-4 top-2 bottom-2 flex flex-col justify-between side-box">
-          <div className="data-item">
-            <div className="label-text">OIL TEMP</div>
-            <div className="value-row">
-              <div id="oil" className="value-number neon-text font-bold value-glow">60°C</div>
-              <div id="oil-bar" className="value-bar"></div>
-            </div>
-          </div>
-          <div className="data-item">
-            <div className="label-text">FUEL</div>
-            <div className="value-row">
-              <div id="fuel" className="value-number neon-text font-bold value-glow">73%</div>
-              <div id="fuel-bar" className="value-bar"></div>
-            </div>
-          </div>
-          <div className="data-item">
-            <div className="label-text">COOLANT</div>
-            <div className="value-row">
-              <div id="temp" className="value-number neon-text font-bold value-glow">20°C</div>
-              <div id="temp-bar" className="value-bar"></div>
-            </div>
+        
+        {/* Connection Status */}
+        <div className="absolute top-4 left-4 z-50">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-sm ${
+            isConnected 
+              ? 'bg-cyan-500/20 border border-cyan-500/40' 
+              : 'bg-red-500/20 border border-red-500/30'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              isConnected ? 'bg-cyan-400 animate-pulse' : 'bg-red-400'
+            }`} />
+            <span className={`text-sm font-medium ${
+              isConnected ? 'text-cyan-200' : 'text-red-200'
+            }`}>
+              {isConnected ? 'Running' : 'Not Connected - Please Connect'}
+            </span>
           </div>
         </div>
 
-        <div className="absolute right-4 top-2 bottom-2 flex flex-col justify-between side-box right-box">
-          <div className="data-item">
-            <div className="label-text">BATTERY</div>
-            <div className="value-row">
-              <div id="voltage-bar" className="value-bar"></div>
-              <div id="voltage" className="value-number neon-text font-bold value-glow">12.1V</div>
-            </div>
-          </div>
-          <div className="data-item">
-            <div className="label-text">BOOST</div>
-            <div className="value-row">
-              <div id="boost-bar" className="value-bar"></div>
-              <div id="boost" className="value-number neon-text font-bold value-glow">1.1 bar</div>
-            </div>
-          </div>
-          <div className="data-item">
-            <div className="label-text">OIL PRESS</div>
-            <div className="value-row">
-              <div id="oilpress-bar" className="value-bar"></div>
-              <div id="oilpress" className="value-number neon-text font-bold value-glow">0.3 bar</div>
-            </div>
+        {/* Pi Time */}
+        <div className="absolute top-4 right-4 z-50">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-sm bg-[#0a192f]/60 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-sm font-semibold text-cyan-100 tracking-wider">{currentTime}</span>
           </div>
         </div>
 
+        {/* Left Widgets */}
+        <div className="absolute left-4 top-16 bottom-4 w-[200px] widgets-container">
+          
+          {/* Oil Temp Widget */}
+          <div className="metric-widget">
+            <div className="widget-label">Oil Temp</div>
+            <div className="widget-content">
+              <div id="oil" className="widget-value">60°C</div>
+              <div className="widget-bar-container">
+                <div id="oil-bar" className="widget-bar-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Fuel Widget */}
+          <div className="metric-widget">
+            <div className="widget-label">Fuel Level</div>
+            <div className="widget-content">
+              <div id="fuel" className="widget-value">73%</div>
+              <div className="widget-bar-container">
+                <div id="fuel-bar" className="widget-bar-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Coolant Widget */}
+          <div className="metric-widget">
+            <div className="widget-label">Coolant Temp</div>
+            <div className="widget-content">
+              <div id="temp" className="widget-value">20°C</div>
+              <div className="widget-bar-container">
+                <div id="temp-bar" className="widget-bar-fill"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Center Canvas */}
         <canvas ref={canvasRef} id="gauge" width="1250" height="390" className="absolute left-0 top-0"></canvas>
+
+        {/* Right Widgets */}
+        <div className="absolute right-4 top-16 bottom-4 w-[200px] widgets-container">
+          
+          {/* Battery Widget */}
+          <div className="metric-widget">
+            <div className="widget-label">Battery</div>
+            <div className="widget-content">
+              <div className="widget-bar-container">
+                <div id="voltage-bar" className="widget-bar-fill"></div>
+              </div>
+              <div id="voltage" className="widget-value">12.1V</div>
+            </div>
+          </div>
+
+          {/* Boost Widget */}
+          <div className="metric-widget">
+            <div className="widget-label">Boost Pressure</div>
+            <div className="widget-content">
+              <div className="widget-bar-container">
+                <div id="boost-bar" className="widget-bar-fill"></div>
+              </div>
+              <div id="boost" className="widget-value">1.1 bar</div>
+            </div>
+          </div>
+
+          {/* Oil Pressure Widget */}
+          <div className="metric-widget">
+            <div className="widget-label">Oil Pressure</div>
+            <div className="widget-content">
+              <div className="widget-bar-container">
+                <div id="oilpress-bar" className="widget-bar-fill"></div>
+              </div>
+              <div id="oilpress" className="widget-value">0.3 bar</div>
+            </div>
+          </div>
+
+        </div>
 
       </div>
     </div>

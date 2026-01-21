@@ -5,6 +5,7 @@ import asyncio
 import logging
 import random
 import platform
+from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
 # UART Konfiguration für OBD-Daten
@@ -56,6 +57,7 @@ async def uart_task():
     global obd_data, last_broadcast_time
     buffer = ""
     first_message = True
+    uart_connected = False
     
     while True:
         try:
@@ -75,19 +77,29 @@ async def uart_task():
                             v = parts[1].strip()
                             obd_data[k] = v
                             
+                            if not uart_connected:
+                                uart_connected = True
+                                logger.info("UART-Datenempfang gestartet - OBD verbunden")
+                            
                             if first_message and len(obd_data) >= 3:
                                 logger.info(f"Feldnamen vom Arduino: {list(obd_data.keys())}")
                                 logger.info(f"Erste Daten: {obd_data}")
                                 first_message = False
             
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
-            if obd_data and (current_time - last_broadcast_time) >= broadcast_interval:
+            if (current_time - last_broadcast_time) >= broadcast_interval:
+                corrected_time = datetime.now() + timedelta(hours=1)
+                broadcast_data = {
+                    **obd_data,
+                    "UART_CONNECTED": uart_connected,
+                    "TIME": corrected_time.strftime("%H:%M:%S"),
+                }
                 for ws in list(connected_clients):
                     try:
-                        await ws.send_json(obd_data)
+                        await ws.send_json(broadcast_data)
                     except Exception:
                         connected_clients.discard(ws)
-                logger.debug(f"OBD-Daten gesendet: {obd_data}")
+                logger.debug(f"OBD-Daten gesendet: {broadcast_data}")
                 last_broadcast_time = current_time
             
             await asyncio.sleep(0.001)
