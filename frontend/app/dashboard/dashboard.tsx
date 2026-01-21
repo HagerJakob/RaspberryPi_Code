@@ -281,16 +281,13 @@ export default function dashboard() {
         }
         
         .value-bar {
-  width: 12px;
-  height: 52px;
-  background: linear-gradient(180deg, #5DADE2 0%, #20B2AA 100%);
-  border-radius: 10px;
-  transform-origin: bottom;
-  transform: scaleY(0);
-  box-shadow: 0 0 8px rgba(0, 206, 209, 0.3);
-}
-        
-        .side-box.right-box .value-bar {
+          width: 12px;
+          height: 52px;
+          background: linear-gradient(180deg, #5DADE2 0%, #20B2AA 100%);
+          border-radius: 10px;
+          transform-origin: bottom;
+          transform: scaleY(0);
+          box-shadow: 0 0 8px rgba(0, 206, 209, 0.3);
         }
         
         .side-box { 
@@ -310,11 +307,11 @@ export default function dashboard() {
         }
 
         .value-row {
-  display: grid;
-  grid-template-columns: auto 12px;
-  align-items: center;
-  column-gap: 20px; /* <<< HIER der Abstand */
-}
+          display: grid;
+          grid-template-columns: auto 12px;
+          align-items: center;
+          column-gap: 20px;
+        }
 
         .value-number {
           font-size: 2.1rem;
@@ -327,9 +324,9 @@ export default function dashboard() {
         }
 
         .side-box.right-box .value-row {
-  grid-template-columns: 12px auto;
-  column-gap: 20px;
-}
+          grid-template-columns: 12px auto;
+          column-gap: 20px;
+        }
 
         .side-box.right-box .value-number {
           grid-column: 2;
