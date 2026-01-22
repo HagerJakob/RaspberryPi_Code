@@ -136,15 +136,11 @@ export default function dashboard() {
       // RPM gradient arc
       const p = Math.min(rpm / 8000, 1);
       const rpmEnd = start + (end - start) * p;
-      ctx.save();
       ctx.strokeStyle = "#00CED1";
       ctx.lineWidth = 60;
-      ctx.shadowColor = "rgba(0, 206, 209, 0.3)";
-      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, rpmEnd);
       ctx.stroke();
-      ctx.restore();
 
       // Speed needle - spitzer Pfeil
       const sp = Math.min(speed / 255, 1);
@@ -171,8 +167,6 @@ export default function dashboard() {
       ctx.lineTo(base2X, base2Y);
       ctx.closePath();
       ctx.fillStyle = "#00CED1";
-      ctx.shadowColor = "rgba(0, 206, 209, 0.5)";
-      ctx.shadowBlur = 6;
       ctx.fill();
 
       // Speed value
@@ -180,9 +174,10 @@ export default function dashboard() {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#FFFFFF";
-      ctx.shadowColor = "rgba(0, 206, 209, 0.3)";
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(0, 206, 209, 0.2)";
+      ctx.shadowBlur = 4;
       ctx.fillText(String(speed), cx, cy - 140);
+      ctx.shadowBlur = 0;
     }
 
     // WebSocket connection to backend
