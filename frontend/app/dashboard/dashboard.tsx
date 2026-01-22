@@ -245,21 +245,21 @@ export default function dashboard() {
           const val = parseInt(data.COOLANT, 10);
           const el = els.temp;
           const bar = els.tempBar;
-          if (el) el.textContent = `${val}°C`;
+          if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
           setBarLevel(bar, (val / 120) * 100);
         }
         if (data.OIL !== undefined) {
           const val = parseInt(data.OIL, 10);
           const el = els.oil;
           const bar = els.oilBar;
-          if (el) el.textContent = `${val}°C`;
+          if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
           setBarLevel(bar, (val / 120) * 100);
         }
         if (data.FUEL !== undefined) {
           const val = parseInt(data.FUEL, 10);
           const el = els.fuel;
           const bar = els.fuelBar;
-          if (el) el.textContent = `${val}%`;
+          if (el) el.innerHTML = `${val}<span class="unit">%</span>`;
           // FUEL is in % (0-100)
           setBarLevel(bar, val);
         }
@@ -268,7 +268,7 @@ export default function dashboard() {
           const el = els.voltage;
           const bar = els.voltageBar;
           if (Number.isFinite(voltage)) {
-            if (el) el.textContent = `${voltage.toFixed(1)}V`;
+            if (el) el.innerHTML = `${voltage.toFixed(1)}<span class="unit">V</span>`;
             // VOLTAGE: 11.8V (0%) to 12.3V (100%)
             const vMin = 11.8;
             const vMax = 12.3;
@@ -281,7 +281,7 @@ export default function dashboard() {
           const el = els.boost;
           const bar = els.boostBar;
           if (Number.isFinite(val)) {
-            if (el) el.textContent = `${val.toFixed(1)} bar`;
+            if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">bar</span>`;
             // BOOST: 0-2 bar
             setBarLevel(bar, (val / 2) * 100);
           }
@@ -291,7 +291,7 @@ export default function dashboard() {
           const el = els.oilpress;
           const bar = els.oilpressBar;
           if (Number.isFinite(val)) {
-            if (el) el.textContent = `${val.toFixed(1)} bar`;
+            if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">bar</span>`;
             // OIL PRESSURE: 0-5 bar
             setBarLevel(bar, (val / 5) * 100);
           }
@@ -412,10 +412,12 @@ export default function dashboard() {
         }
         
         .widget-value .unit {
-          font-size: 1.25rem;
-          font-weight: 500;
-          margin-left: 4px;
-          opacity: 0.8;
+          font-size: 1.2rem;
+          font-weight: 400;
+          margin-left: 6px;
+          opacity: 0.7;
+          vertical-align: super;
+          font-size: 0.75rem;
         }
         
         .widget-bar-container {
