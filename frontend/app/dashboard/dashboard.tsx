@@ -12,6 +12,16 @@ export default function dashboard() {
     const ctx = canvas.getContext("2d")!;
     if (!ctx) return;
 
+    // Scale canvas for high DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    const width = 1250;
+    const height = 390;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+
     let speed = 0;
     let rpm = 0;
 
@@ -327,9 +337,9 @@ export default function dashboard() {
         }
         
         canvas { 
-          image-rendering: optimizeSpeed; 
-          image-rendering: crisp-edges; 
           filter: drop-shadow(0 0 8px rgba(0, 206, 209, 0.2)); 
+          position: relative;
+          z-index: 10;
         }
         
         /* Widget Card Design */
@@ -504,7 +514,7 @@ export default function dashboard() {
         </div>
 
         {/* Center Canvas */}
-        <canvas ref={canvasRef} id="gauge" width="1250" height="390" className="absolute left-0 top-0"></canvas>
+        <canvas ref={canvasRef} id="gauge" width="1250" height="390" className="absolute left-0 top-0 z-10"></canvas>
 
         {/* Right Widgets */}
         <div className="absolute right-4 top-16 bottom-4 w-[200px] widgets-container">
