@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 export default function dashboard() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const elementsRef = useRef<{ [key: string]: HTMLElement | null }>({});
   const [isConnected, setIsConnected] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("--:--:--");
 
   useEffect(() => {
-    const canvas = canvasRef.current || document.getElementById("gauge") as HTMLCanvasElement | null;
+    const canvas = canvasRef.current || (document.getElementById("gauge") as HTMLCanvasElement | null);
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
     if (!ctx) return;
@@ -35,6 +36,22 @@ export default function dashboard() {
       if (!bar) return;
       const level = clampPercent(percent);
       bar.style.height = `${level}%`;
+    };
+
+    // Cache metric elements once to avoid repeated DOM lookups on every message
+    elementsRef.current = {
+      temp: document.getElementById("temp"),
+      tempBar: document.getElementById("temp-bar"),
+      oil: document.getElementById("oil"),
+      oilBar: document.getElementById("oil-bar"),
+      fuel: document.getElementById("fuel"),
+      fuelBar: document.getElementById("fuel-bar"),
+      voltage: document.getElementById("voltage"),
+      voltageBar: document.getElementById("voltage-bar"),
+      boost: document.getElementById("boost"),
+      boostBar: document.getElementById("boost-bar"),
+      oilpress: document.getElementById("oilpress"),
+      oilpressBar: document.getElementById("oilpress-bar"),
     };
 
     function drawRpmScale() {
@@ -178,8 +195,19 @@ export default function dashboard() {
       setIsConnected(false);
     };
 
-    let animationId: number;
+    let frameId: number | null = null;
     let needsRedraw = true;
+
+    const requestDraw = () => {
+      if (frameId !== null) return;
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        if (needsRedraw) {
+          drawGauge();
+          needsRedraw = false;
+        }
+      });
+    };
 
     ws.onmessage = (ev) => {
       try {
@@ -187,7 +215,7 @@ export default function dashboard() {
         
         // Update connection status based on UART connection
         if (data.UART_CONNECTED !== undefined) {
-          setIsConnected(data.UART_CONNECTED);
+          setIsConnected(Boolean(data.UART_CONNECTED));
         }
 
         // Update current time from Pi if present
@@ -198,78 +226,83 @@ export default function dashboard() {
         const oldRpm = rpm;
         const oldSpeed = speed;
         
-        if (data.RPM !== undefined) rpm = parseInt(data.RPM);
-        if (data.SPEED !== undefined) speed = parseInt(data.SPEED);
+        if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
+        if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
         
+        const els = elementsRef.current;
+
         if (data.COOLANT !== undefined) {
-          const el = document.getElementById("temp");
-          const bar = document.getElementById("temp-bar");
-          if (el) el.innerHTML = `${data.COOLANT}<span class="unit">°C</span>`;
-          setBarLevel(bar, (parseInt(data.COOLANT) / 120) * 100);
+          const val = parseInt(data.COOLANT, 10);
+          const el = els.temp;
+          const bar = els.tempBar;
+          if (el) el.textContent = `${val}°C`;
+          setBarLevel(bar, (val / 120) * 100);
         }
         if (data.OIL !== undefined) {
-          const el = document.getElementById("oil");
-          const bar = document.getElementById("oil-bar");
-          if (el) el.innerHTML = `${data.OIL}<span class="unit">°C</span>`;
-          setBarLevel(bar, (parseInt(data.OIL) / 120) * 100);
+          const val = parseInt(data.OIL, 10);
+          const el = els.oil;
+          const bar = els.oilBar;
+          if (el) el.textContent = `${val}°C`;
+          setBarLevel(bar, (val / 120) * 100);
         }
         if (data.FUEL !== undefined) {
-          const el = document.getElementById("fuel");
-          const bar = document.getElementById("fuel-bar");
-          if (el) el.innerHTML = `${data.FUEL}<span class="unit">%</span>`;
+          const val = parseInt(data.FUEL, 10);
+          const el = els.fuel;
+          const bar = els.fuelBar;
+          if (el) el.textContent = `${val}%`;
           // FUEL is in % (0-100)
-          setBarLevel(bar, parseInt(data.FUEL));
+          setBarLevel(bar, val);
         }
         if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
-          const el = document.getElementById("voltage");
-          const bar = document.getElementById("voltage-bar");
           const voltage = parseFloat(data.VOLTAGE || data.BATTERY);
-          if (el) el.innerHTML = `${voltage}<span class="unit">V</span>`;
-          // VOLTAGE: 11.8V (0%) to 12.3V (100%)
-          const vMin = 11.8;
-          const vMax = 12.3;
-          const vPercent = ((voltage - vMin) / (vMax - vMin)) * 100;
-          setBarLevel(bar, vPercent);
+          const el = els.voltage;
+          const bar = els.voltageBar;
+          if (Number.isFinite(voltage)) {
+            if (el) el.textContent = `${voltage.toFixed(1)}V`;
+            // VOLTAGE: 11.8V (0%) to 12.3V (100%)
+            const vMin = 11.8;
+            const vMax = 12.3;
+            const vPercent = ((voltage - vMin) / (vMax - vMin)) * 100;
+            setBarLevel(bar, vPercent);
+          }
         }
         if (data.BOOST !== undefined) {
-          const el = document.getElementById("boost");
-          const bar = document.getElementById("boost-bar");
-          if (el) el.innerHTML = `${data.BOOST}<span class="unit">bar</span>`;
-          // BOOST: 0-2 bar
-          setBarLevel(bar, (parseFloat(data.BOOST) / 2) * 100);
+          const val = parseFloat(data.BOOST);
+          const el = els.boost;
+          const bar = els.boostBar;
+          if (Number.isFinite(val)) {
+            if (el) el.textContent = `${val.toFixed(1)} bar`;
+            // BOOST: 0-2 bar
+            setBarLevel(bar, (val / 2) * 100);
+          }
         }
         if (data.OILPRESS !== undefined) {
-          const el = document.getElementById("oilpress");
-          const bar = document.getElementById("oilpress-bar");
-          if (el) el.innerHTML = `${data.OILPRESS}<span class="unit">bar</span>`;
-          // OIL PRESSURE: 0-5 bar
-          setBarLevel(bar, (parseFloat(data.OILPRESS) / 5) * 100);
+          const val = parseFloat(data.OILPRESS);
+          const el = els.oilpress;
+          const bar = els.oilpressBar;
+          if (Number.isFinite(val)) {
+            if (el) el.textContent = `${val.toFixed(1)} bar`;
+            // OIL PRESSURE: 0-5 bar
+            setBarLevel(bar, (val / 5) * 100);
+          }
         }
 
         if (rpm !== oldRpm || speed !== oldSpeed) {
           needsRedraw = true;
+          requestDraw();
         }
       } catch (e) {
         console.error("Parse error:", e);
       }
     };
 
-    // Continuous animation loop - redraws at 60fps
-    const animate = () => {
-      if (needsRedraw) {
-        drawGauge();
-        needsRedraw = false;
-      }
-      animationId = requestAnimationFrame(animate);
-    };
-
-    // initial draw
-    drawGauge();
-    animate();
+    // initial draw on next animation frame
+    needsRedraw = true;
+    requestDraw();
 
     return () => {
       try {
-        if (animationId) cancelAnimationFrame(animationId);
+        if (frameId !== null) cancelAnimationFrame(frameId);
         ws.close();
       } catch {}
     };
