@@ -208,44 +208,24 @@ export default function dashboard() {
     let frameId: number | null = null;
     let needsRedraw = true;
     let lastUpdateTime = 0;
-    const updateThrottle = 8; // ~120 FPS
-
-    // Interpolation für glattere Bewegung
-    let targetRpm = 0;
-    let targetSpeed = 0;
-    let displayRpm = 0;
-    let displaySpeed = 0;
-    const interpolationSpeed = 0.15; // Smooth interpolation
+    const updateThrottle = 16; // ~60 FPS
 
     const requestDraw = () => {
       if (frameId !== null) return;
       frameId = requestAnimationFrame((timestamp) => {
         frameId = null;
-        
-        // Interpoliere Werte für flüssigere Animation
-        displayRpm += (targetRpm - displayRpm) * interpolationSpeed;
-        displaySpeed += (targetSpeed - displaySpeed) * interpolationSpeed;
-        rpm = displayRpm;
-        speed = displaySpeed;
-        
-        if (timestamp - lastUpdateTime >= updateThrottle) {
+        if (timestamp - lastUpdateTime >= updateThrottle && needsRedraw) {
           lastUpdateTime = timestamp;
           drawGauge();
           needsRedraw = false;
-        }
-        
-        if (Math.abs(displayRpm - targetRpm) > 0.5 || Math.abs(displaySpeed - targetSpeed) > 0.5) {
-          needsRedraw = true;
-        }
-        
-        if (needsRedraw) {
+        } else if (needsRedraw) {
           requestDraw();
         }
       });
     };
 
     let lastMessageTime = 0;
-    const messageThrottle = 8; // ~120 FPS
+    const messageThrottle = 16; // ~60 FPS
 
     ws.onmessage = (ev) => {
       try {
@@ -262,14 +242,17 @@ export default function dashboard() {
           setCurrentTime(String(data.TIME));
         }
         
-        // Throttle updates zu ~120 FPS
+        // Throttle updates zu ~60 FPS
         if (now - lastMessageTime < messageThrottle) {
           return;
         }
         lastMessageTime = now;
         
-        if (data.RPM !== undefined) targetRpm = parseInt(data.RPM, 10);
-        if (data.SPEED !== undefined) targetSpeed = parseInt(data.SPEED, 10);
+        const oldRpm = rpm;
+        const oldSpeed = speed;
+        
+        if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
+        if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
         
         const els = elementsRef.current;
 
@@ -321,12 +304,15 @@ export default function dashboard() {
           const bar = els.oilpressBar;
           if (Number.isFinite(val)) {
             if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">bar</span>`;
+            // OIL PRESSURE: 0-5 bar
             setBarLevel(bar, (val / 5) * 100);
           }
         }
 
-        needsRedraw = true;
-        requestDraw();
+        if (rpm !== oldRpm || speed !== oldSpeed) {
+          needsRedraw = true;
+          requestDraw();
+        }
       } catch (e) {
         console.error("Parse error:", e);
       }

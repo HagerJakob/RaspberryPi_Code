@@ -50,7 +50,7 @@ obd_data = {
     "OILPRESS": "0.3"
 }
 last_broadcast_time = 0
-broadcast_interval = 0.008  # Broadcast alle ~8ms für 120 FPS
+broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
