@@ -207,20 +207,29 @@ export default function dashboard() {
 
     let frameId: number | null = null;
     let needsRedraw = true;
+    let lastUpdateTime = 0;
+    const updateThrottle = 16; // ~60 FPS
 
     const requestDraw = () => {
       if (frameId !== null) return;
-      frameId = requestAnimationFrame(() => {
+      frameId = requestAnimationFrame((timestamp) => {
         frameId = null;
-        if (needsRedraw) {
+        if (timestamp - lastUpdateTime >= updateThrottle && needsRedraw) {
+          lastUpdateTime = timestamp;
           drawGauge();
           needsRedraw = false;
+        } else if (needsRedraw) {
+          requestDraw();
         }
       });
     };
 
+    let lastMessageTime = 0;
+    const messageThrottle = 16; // ~60 FPS
+
     ws.onmessage = (ev) => {
       try {
+        const now = Date.now();
         const data = JSON.parse(ev.data);
         
         // Update connection status based on UART connection
@@ -232,6 +241,12 @@ export default function dashboard() {
         if (data.TIME) {
           setCurrentTime(String(data.TIME));
         }
+        
+        // Throttle updates zu ~60 FPS
+        if (now - lastMessageTime < messageThrottle) {
+          return;
+        }
+        lastMessageTime = now;
         
         const oldRpm = rpm;
         const oldSpeed = speed;
