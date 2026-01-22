@@ -64,13 +64,21 @@ export default function dashboard() {
       oilpressBar: document.getElementById("oilpress-bar"),
     };
 
-    function drawRpmScale() {
-      ctx.save();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(32, 178, 170, 0.6)";
-      ctx.fillStyle = "#EDEFF2";
-      ctx.font = "bold 18px 'Arial'";
-      ctx.textAlign = "center";
+    // Create offscreen canvas for static scales (cache)
+    const scaleCanvas = document.createElement('canvas');
+    scaleCanvas.width = canvas.width;
+    scaleCanvas.height = canvas.height;
+    const scaleCtx = scaleCanvas.getContext("2d")!;
+    scaleCtx.scale(dpr, dpr);
+
+    function drawAndCacheScales() {
+      // RPM Scale
+      scaleCtx.save();
+      scaleCtx.lineWidth = 2.5;
+      scaleCtx.strokeStyle = "rgba(32, 178, 170, 0.6)";
+      scaleCtx.fillStyle = "#EDEFF2";
+      scaleCtx.font = "bold 18px 'Arial'";
+      scaleCtx.textAlign = "center";
 
       for (let i = 0; i <= 8; i++) {
         const a = start + (end - start) * (i / 8);
@@ -78,26 +86,18 @@ export default function dashboard() {
         const y1 = cy + Math.sin(a) * (rOuter + 15);
         const x2 = cx + Math.cos(a) * (rOuter + 40);
         const y2 = cy + Math.sin(a) * (rOuter + 40);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.shadowColor = "rgba(0, 206, 209, 0.3)";
-        ctx.shadowBlur = 3;
-        ctx.fillText(String(i), cx + Math.cos(a) * (rOuter + 55), cy + Math.sin(a) * (rOuter + 55));
-        ctx.shadowBlur = 0;
+        scaleCtx.beginPath();
+        scaleCtx.moveTo(x1, y1);
+        scaleCtx.lineTo(x2, y2);
+        scaleCtx.stroke();
+        scaleCtx.fillText(String(i), cx + Math.cos(a) * (rOuter + 55), cy + Math.sin(a) * (rOuter + 55));
       }
 
-      ctx.restore();
-    }
-
-    function drawSpeedScale() {
-      ctx.save();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = "rgba(0, 206, 209, 0.5)";
-      ctx.fillStyle = "#9AA3AE";
-      ctx.font = "bold 15px 'Arial'";
-      ctx.textAlign = "center";
+      // Speed Scale
+      scaleCtx.lineWidth = 2.5;
+      scaleCtx.strokeStyle = "rgba(0, 206, 209, 0.5)";
+      scaleCtx.fillStyle = "#9AA3AE";
+      scaleCtx.font = "bold 15px 'Arial'";
 
       for (let i = 0; i <= 17; i++) {
         const p = i / 17;
@@ -107,24 +107,24 @@ export default function dashboard() {
         const y1 = cy + Math.sin(a) * (rInner + 55);
         const x2 = cx + Math.cos(a) * (rInner + 30);
         const y2 = cy + Math.sin(a) * (rInner + 30);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.shadowColor = "rgba(93, 173, 226, 0.2)";
-        ctx.shadowBlur = 2;
-        ctx.fillText(String(val), cx + Math.cos(a) * (rInner + 11), cy + Math.sin(a) * (rInner + 11));
-        ctx.shadowBlur = 0;
+        scaleCtx.beginPath();
+        scaleCtx.moveTo(x1, y1);
+        scaleCtx.lineTo(x2, y2);
+        scaleCtx.stroke();
+        scaleCtx.fillText(String(val), cx + Math.cos(a) * (rInner + 11), cy + Math.sin(a) * (rInner + 11));
       }
 
-      ctx.restore();
+      scaleCtx.restore();
     }
+
+    drawAndCacheScales();
 
     function drawGauge() {
       if (!canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawRpmScale();
-      drawSpeedScale();
+      
+      // Draw cached scales
+      ctx.drawImage(scaleCanvas, 0, 0);
 
       // Background circle
       ctx.beginPath();
