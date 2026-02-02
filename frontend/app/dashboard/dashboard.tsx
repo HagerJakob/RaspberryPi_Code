@@ -79,6 +79,7 @@ export default function dashboard() {
       scaleCtx.fillStyle = "#EDEFF2";
       scaleCtx.font = "bold 18px 'Arial'";
       scaleCtx.textAlign = "center";
+      scaleCtx.textBaseline = "middle";
 
       for (let i = 0; i <= 8; i++) {
         const a = start + (end - start) * (i / 8);
@@ -98,6 +99,7 @@ export default function dashboard() {
       scaleCtx.strokeStyle = "rgba(0, 206, 209, 0.5)";
       scaleCtx.fillStyle = "#9AA3AE";
       scaleCtx.font = "bold 15px 'Arial'";
+      scaleCtx.textBaseline = "middle";
 
       for (let i = 0; i <= 17; i++) {
         const p = i / 17;
@@ -123,8 +125,11 @@ export default function dashboard() {
       if (!canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Draw cached scales
+      // Draw cached scales without double-scaling
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(scaleCanvas, 0, 0);
+      ctx.restore();
 
       // Background circle
       ctx.beginPath();
