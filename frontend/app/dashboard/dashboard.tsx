@@ -183,6 +183,12 @@ export default function dashboard() {
       ctx.shadowBlur = 4;
       ctx.fillText(String(speed), cx, cy - 140);
       ctx.shadowBlur = 0;
+      
+      // km/h Einheit
+      ctx.font = "20px 'Arial'";
+      ctx.fillStyle = "#00CED1";
+      ctx.textAlign = "center";
+      ctx.fillText("km/h", cx, cy - 70);
     }
 
     // WebSocket connection to backend
@@ -334,9 +340,18 @@ export default function dashboard() {
     <div className="w-full h-full flex justify-center items-center bg-gray-900">
       <style>{`
         .carbon { 
-          background: #000;
+          background-image: 
+            linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+            url('/background.png');
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
           position: relative;
           border-radius: 20px;
+        }
+        
+        .carbon::after {
+          display: none;
         }
         
         .carbon::before { 
