@@ -1,10 +1,145 @@
 import { useEffect, useRef, useState } from "react";
 
-export default function dashboard() {
+type ThemeName = "teal" | "ember" | "emerald" | "sapphire" | "crimson" | "solar";
+type BackgroundMode = "dark-carbon" | "dark-clean";
+
+const THEMES: Record<ThemeName, {
+  accent: string;
+  accentSoft: string;
+  accentDeep: string;
+  rpmTick: string;
+  speedTick: string;
+  scaleText: string;
+  scaleTextSecondary: string;
+  beamMid: string;
+  beamEnd: string;
+  glow: string;
+  speedText: string;
+  speedShadow: string;
+  hiltStroke: string;
+  hiltGuard: string;
+}> = {
+  teal: {
+    accent: "#00CED1",
+    accentSoft: "#5DADE2",
+    accentDeep: "#20B2AA",
+    rpmTick: "rgba(32, 178, 170, 0.6)",
+    speedTick: "rgba(0, 206, 209, 0.5)",
+    scaleText: "#EDEFF2",
+    scaleTextSecondary: "#9AA3AE",
+    beamMid: "rgba(0, 206, 209, 0.6)",
+    beamEnd: "rgba(93, 173, 226, 1)",
+    glow: "rgba(0, 206, 209, 0.8)",
+    speedText: "#FFFFFF",
+    speedShadow: "rgba(0, 206, 209, 0.2)",
+    hiltStroke: "rgba(0, 206, 209, 0.35)",
+    hiltGuard: "rgba(0, 206, 209, 0.6)",
+  },
+  ember: {
+    accent: "#FF7A18",
+    accentSoft: "#FFB347",
+    accentDeep: "#FF3D00",
+    rpmTick: "rgba(255, 77, 0, 0.6)",
+    speedTick: "rgba(255, 122, 24, 0.5)",
+    scaleText: "#F7E9E2",
+    scaleTextSecondary: "#B3A49A",
+    beamMid: "rgba(255, 122, 24, 0.6)",
+    beamEnd: "rgba(255, 179, 71, 1)",
+    glow: "rgba(255, 122, 24, 0.8)",
+    speedText: "#FFF5EE",
+    speedShadow: "rgba(255, 122, 24, 0.25)",
+    hiltStroke: "rgba(255, 122, 24, 0.35)",
+    hiltGuard: "rgba(255, 122, 24, 0.7)",
+  },
+  emerald: {
+    accent: "#4AF2A1",
+    accentSoft: "#92F2D7",
+    accentDeep: "#2BC48A",
+    rpmTick: "rgba(43, 196, 138, 0.6)",
+    speedTick: "rgba(74, 242, 161, 0.5)",
+    scaleText: "#E8F5EE",
+    scaleTextSecondary: "#9FB7A8",
+    beamMid: "rgba(74, 242, 161, 0.6)",
+    beamEnd: "rgba(146, 242, 215, 1)",
+    glow: "rgba(74, 242, 161, 0.8)",
+    speedText: "#F4FFF9",
+    speedShadow: "rgba(74, 242, 161, 0.25)",
+    hiltStroke: "rgba(74, 242, 161, 0.35)",
+    hiltGuard: "rgba(74, 242, 161, 0.7)",
+  },
+  sapphire: {
+    accent: "#3B82F6",
+    accentSoft: "#60A5FA",
+    accentDeep: "#1D4ED8",
+    rpmTick: "rgba(29, 78, 216, 0.6)",
+    speedTick: "rgba(59, 130, 246, 0.5)",
+    scaleText: "#EEF2FF",
+    scaleTextSecondary: "#A5B4FC",
+    beamMid: "rgba(59, 130, 246, 0.6)",
+    beamEnd: "rgba(96, 165, 250, 1)",
+    glow: "rgba(59, 130, 246, 0.85)",
+    speedText: "#F8FAFF",
+    speedShadow: "rgba(59, 130, 246, 0.25)",
+    hiltStroke: "rgba(59, 130, 246, 0.35)",
+    hiltGuard: "rgba(59, 130, 246, 0.7)",
+  },
+  crimson: {
+    accent: "#E11D48",
+    accentSoft: "#FB7185",
+    accentDeep: "#BE123C",
+    rpmTick: "rgba(190, 18, 60, 0.6)",
+    speedTick: "rgba(225, 29, 72, 0.5)",
+    scaleText: "#FEEEF1",
+    scaleTextSecondary: "#FCA5A5",
+    beamMid: "rgba(225, 29, 72, 0.6)",
+    beamEnd: "rgba(251, 113, 133, 1)",
+    glow: "rgba(225, 29, 72, 0.8)",
+    speedText: "#FFF5F7",
+    speedShadow: "rgba(225, 29, 72, 0.25)",
+    hiltStroke: "rgba(225, 29, 72, 0.35)",
+    hiltGuard: "rgba(225, 29, 72, 0.7)",
+  },
+  solar: {
+    accent: "#F59E0B",
+    accentSoft: "#FCD34D",
+    accentDeep: "#D97706",
+    rpmTick: "rgba(217, 119, 6, 0.6)",
+    speedTick: "rgba(245, 158, 11, 0.5)",
+    scaleText: "#FFF7E6",
+    scaleTextSecondary: "#FACC15",
+    beamMid: "rgba(245, 158, 11, 0.6)",
+    beamEnd: "rgba(252, 211, 77, 1)",
+    glow: "rgba(245, 158, 11, 0.8)",
+    speedText: "#FFF9ED",
+    speedShadow: "rgba(245, 158, 11, 0.25)",
+    hiltStroke: "rgba(245, 158, 11, 0.35)",
+    hiltGuard: "rgba(245, 158, 11, 0.7)",
+  },
+};
+
+const resolveTheme = (value: string | null | undefined): ThemeName => {
+  if (value === "ember" || value === "emerald" || value === "teal" || value === "sapphire" || value === "crimson" || value === "solar") return value;
+  return "teal";
+};
+
+const THEME_ORDER: ThemeName[] = ["teal", "ember", "emerald", "sapphire", "crimson", "solar"];
+const BACKGROUND_ORDER: BackgroundMode[] = ["dark-carbon", "dark-clean"];
+
+type DashboardProps = {
+  theme?: ThemeName;
+};
+
+export default function Dashboard({ theme }: DashboardProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const elementsRef = useRef<{ [key: string]: HTMLElement | null }>({});
   const [isConnected, setIsConnected] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("--:--:--");
+  const [themeOverride, setThemeOverride] = useState<ThemeName | null>(null);
+  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("dark-carbon");
+  const themeFromQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("theme") : null;
+  const themeName = resolveTheme(theme ?? themeFromQuery);
+  const effectiveTheme = themeOverride ?? themeName;
+  const activeTheme = THEMES[effectiveTheme];
 
   useEffect(() => {
     const canvas = canvasRef.current || (document.getElementById("gauge") as HTMLCanvasElement | null);
@@ -33,9 +168,9 @@ export default function dashboard() {
     const end = Math.PI * 1.95;
 
     const rpmGrad = ctx.createLinearGradient(cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
-    rpmGrad.addColorStop(0, "#5DADE2");
-    rpmGrad.addColorStop(0.5, "#00CED1");
-    rpmGrad.addColorStop(1, "#20B2AA");
+    rpmGrad.addColorStop(0, activeTheme.accentSoft);
+    rpmGrad.addColorStop(0.5, activeTheme.accent);
+    rpmGrad.addColorStop(1, activeTheme.accentDeep);
 
     const clampPercent = (value: number) => {
       if (!Number.isFinite(value)) return 0;
@@ -75,8 +210,8 @@ export default function dashboard() {
       // RPM Scale
       scaleCtx.save();
       scaleCtx.lineWidth = 2.5;
-      scaleCtx.strokeStyle = "rgba(32, 178, 170, 0.6)";
-      scaleCtx.fillStyle = "#EDEFF2";
+      scaleCtx.strokeStyle = activeTheme.rpmTick;
+      scaleCtx.fillStyle = activeTheme.scaleText;
       scaleCtx.font = "bold 18px 'Arial'";
       scaleCtx.textAlign = "center";
       scaleCtx.textBaseline = "middle";
@@ -96,8 +231,8 @@ export default function dashboard() {
 
       // Speed Scale
       scaleCtx.lineWidth = 2.5;
-      scaleCtx.strokeStyle = "rgba(0, 206, 209, 0.5)";
-      scaleCtx.fillStyle = "#9AA3AE";
+      scaleCtx.strokeStyle = activeTheme.speedTick;
+      scaleCtx.fillStyle = activeTheme.scaleTextSecondary;
       scaleCtx.font = "bold 15px 'Arial'";
       scaleCtx.textBaseline = "middle";
 
@@ -141,7 +276,7 @@ export default function dashboard() {
       // RPM gradient arc
       const p = Math.min(rpm / 8000, 1);
       const rpmEnd = start + (end - start) * p;
-      ctx.strokeStyle = "#00CED1";
+      ctx.strokeStyle = activeTheme.accent;
       ctx.lineWidth = 60;
       ctx.beginPath();
       ctx.arc(cx, cy, rOuter, start, rpmEnd);
@@ -159,10 +294,10 @@ export default function dashboard() {
       // Glow beam
       const beamGrad = ctx.createLinearGradient(0, 0, needleLen, 0);
       beamGrad.addColorStop(0, "rgba(0, 206, 209, 0.0)");
-      beamGrad.addColorStop(0.2, "rgba(0, 206, 209, 0.6)");
-      beamGrad.addColorStop(1, "rgba(93, 173, 226, 1)");
+      beamGrad.addColorStop(0.2, activeTheme.beamMid);
+      beamGrad.addColorStop(1, activeTheme.beamEnd);
 
-      ctx.shadowColor = "rgba(0, 206, 209, 0.8)";
+      ctx.shadowColor = activeTheme.glow;
       ctx.shadowBlur = 18;
       ctx.strokeStyle = beamGrad;
       ctx.lineWidth = 6;
@@ -182,7 +317,7 @@ export default function dashboard() {
 
       // Holder (hilt + guard)
       ctx.fillStyle = "#0b1418";
-      ctx.strokeStyle = "rgba(0, 206, 209, 0.35)";
+      ctx.strokeStyle = activeTheme.hiltStroke;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.roundRect(-16, -9, 42, 18, 7);
@@ -194,7 +329,7 @@ export default function dashboard() {
       ctx.roundRect(-4, -14, 14, 28, 6);
       ctx.fill();
 
-      ctx.strokeStyle = "rgba(0, 206, 209, 0.6)";
+      ctx.strokeStyle = activeTheme.hiltGuard;
       ctx.lineWidth = 3.5;
       ctx.beginPath();
       ctx.moveTo(7, -13);
@@ -207,15 +342,15 @@ export default function dashboard() {
       ctx.font = "small-caps bold 120px 'Verdana'";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#FFFFFF";
-      ctx.shadowColor = "rgba(0, 206, 209, 0.2)";
+      ctx.fillStyle = activeTheme.speedText;
+      ctx.shadowColor = activeTheme.speedShadow;
       ctx.shadowBlur = 4;
       ctx.fillText(String(speed), cx, cy - 140);
       ctx.shadowBlur = 0;
       
       // km/h Einheit
       ctx.font = "20px 'Arial'";
-      ctx.fillStyle = "#00CED1";
+      ctx.fillStyle = activeTheme.accent;
       ctx.textAlign = "center";
       ctx.fillText("km/h", cx, cy - 70);
     }
@@ -363,20 +498,117 @@ export default function dashboard() {
         ws.close();
       } catch {}
     };
-  }, []);
+  }, [effectiveTheme]);
+
+  const handleThemeCycle = () => {
+    const currentIndex = THEME_ORDER.indexOf(effectiveTheme);
+    const nextTheme = THEME_ORDER[(currentIndex + 1) % THEME_ORDER.length];
+    setThemeOverride(nextTheme);
+  };
+
+  const handleBackgroundToggle = () => {
+    setBackgroundMode((prev) => {
+      const currentIndex = BACKGROUND_ORDER.indexOf(prev);
+      return BACKGROUND_ORDER[(currentIndex + 1) % BACKGROUND_ORDER.length];
+    });
+  };
+
+  const isCleanBackground = backgroundMode.includes("clean");
 
   return (
-    <div className="w-full h-full flex justify-center items-center bg-gray-900">
+    <div className={`w-full h-full flex justify-center items-center bg-gray-900 theme-${effectiveTheme}`}>
       <style>{`
+        .theme-teal {
+          --accent: #00CED1;
+          --accent-soft: #5DADE2;
+          --accent-deep: #20B2AA;
+          --accent-rgb: 0, 206, 209;
+          --accent-soft-rgb: 93, 173, 226;
+          --text-muted: #9AA3AE;
+          --text-bright: #FFFFFF;
+        }
+
+        .theme-ember {
+          --accent: #FF7A18;
+          --accent-soft: #FFB347;
+          --accent-deep: #FF3D00;
+          --accent-rgb: 255, 122, 24;
+          --accent-soft-rgb: 255, 179, 71;
+          --text-muted: #B3A49A;
+          --text-bright: #FFF5EE;
+        }
+
+        .theme-emerald {
+          --accent: #4AF2A1;
+          --accent-soft: #92F2D7;
+          --accent-deep: #2BC48A;
+          --accent-rgb: 74, 242, 161;
+          --accent-soft-rgb: 146, 242, 215;
+          --text-muted: #9FB7A8;
+          --text-bright: #F4FFF9;
+        }
+
+        .theme-sapphire {
+          --accent: #3B82F6;
+          --accent-soft: #60A5FA;
+          --accent-deep: #1D4ED8;
+          --accent-rgb: 59, 130, 246;
+          --accent-soft-rgb: 96, 165, 250;
+          --text-muted: #A5B4FC;
+          --text-bright: #F8FAFF;
+        }
+
+        .theme-crimson {
+          --accent: #E11D48;
+          --accent-soft: #FB7185;
+          --accent-deep: #BE123C;
+          --accent-rgb: 225, 29, 72;
+          --accent-soft-rgb: 251, 113, 133;
+          --text-muted: #FCA5A5;
+          --text-bright: #FFF5F7;
+        }
+
+        .theme-solar {
+          --accent: #F59E0B;
+          --accent-soft: #FCD34D;
+          --accent-deep: #D97706;
+          --accent-rgb: 245, 158, 11;
+          --accent-soft-rgb: 252, 211, 77;
+          --text-muted: #FACC15;
+          --text-bright: #FFF9ED;
+        }
+
         .carbon { 
-          background-image: 
-            linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
-            url('/background.png');
+          position: relative;
+          border-radius: 20px;
+        }
+
+        .bg-dark {
+          --carbon-overlay: linear-gradient(rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.78));
+          --carbon-sheen: linear-gradient(135deg, rgba(var(--accent-rgb), 0.03) 0%, rgba(var(--accent-soft-rgb), 0.01) 100%);
+          --clean-overlay: linear-gradient(rgba(10, 14, 20, 0.75), rgba(6, 9, 13, 0.85));
+          --dash-bg-image: url('/background.png');
+          --clean-bg-image: radial-gradient(circle at 15% 20%, rgba(var(--accent-rgb), 0.2), transparent 55%),
+            radial-gradient(circle at 80% 10%, rgba(var(--accent-soft-rgb), 0.18), transparent 45%),
+            linear-gradient(135deg, #08131b 0%, #0a1118 100%);
+          --panel-bg: linear-gradient(135deg, rgba(20, 30, 40, 0.5) 0%, rgba(15, 25, 35, 0.7) 100%);
+          --bar-track: rgba(20, 30, 40, 0.6);
+          --pill-bg: rgba(6, 12, 18, 0.55);
+        }
+
+
+        .bg-carbon {
+          background-image: var(--carbon-overlay), var(--dash-bg-image);
           background-size: cover;
           background-position: center;
           background-repeat: no-repeat;
-          position: relative;
-          border-radius: 20px;
+        }
+
+        .bg-clean {
+          background-image: var(--clean-overlay), var(--clean-bg-image);
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
         }
         
         .carbon::after {
@@ -387,29 +619,29 @@ export default function dashboard() {
           content: ''; 
           position: absolute; 
           inset: 0; 
-          background: linear-gradient(135deg, rgba(0, 206, 209, 0.03) 0%, rgba(93, 173, 226, 0.01) 100%); 
+          background: var(--carbon-sheen);
           pointer-events: none; 
           border-radius: 20px;
         }
         
         canvas { 
-          filter: drop-shadow(0 0 8px rgba(0, 206, 209, 0.2)); 
+          filter: drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.25)); 
           position: relative;
           z-index: 10;
         }
         
         /* Widget Card Design */
         .metric-widget {
-          background: linear-gradient(135deg, rgba(20, 30, 40, 0.5) 0%, rgba(15, 25, 35, 0.7) 100%);
+          background: var(--panel-bg);
           backdrop-filter: blur(10px);
-          border: 1px solid rgba(0, 206, 209, 0.25);
+          border: 1px solid rgba(var(--accent-rgb), 0.25);
           border-radius: 12px;
           padding: 14px 16px;
           position: relative;
           overflow: hidden;
           box-shadow: 
             0 4px 16px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(0, 206, 209, 0.1);
+            inset 0 1px 0 rgba(var(--accent-rgb), 0.1);
           transition: all 0.2s ease;
         }
         
@@ -417,15 +649,15 @@ export default function dashboard() {
           content: '';
           position: absolute;
           inset: 0;
-          background: linear-gradient(135deg, rgba(0, 206, 209, 0.05) 0%, transparent 50%);
+          background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.05) 0%, transparent 50%);
           pointer-events: none;
         }
         
         .metric-widget:hover {
-          border-color: rgba(0, 206, 209, 0.4);
+          border-color: rgba(var(--accent-rgb), 0.4);
           box-shadow: 
-            0 6px 20px rgba(0, 206, 209, 0.15),
-            inset 0 1px 0 rgba(0, 206, 209, 0.15);
+            0 6px 20px rgba(var(--accent-rgb), 0.15),
+            inset 0 1px 0 rgba(var(--accent-rgb), 0.15);
           transform: translateY(-1px);
         }
         
@@ -434,7 +666,7 @@ export default function dashboard() {
           font-weight: 600;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: rgba(154, 163, 174, 0.8);
+          color: var(--text-muted);
           margin-bottom: 8px;
           display: flex;
           align-items: center;
@@ -445,9 +677,9 @@ export default function dashboard() {
           content: '';
           width: 2px;
           height: 10px;
-          background: linear-gradient(180deg, #00CED1 0%, #5DADE2 100%);
+          background: linear-gradient(180deg, var(--accent) 0%, var(--accent-soft) 100%);
           border-radius: 2px;
-          box-shadow: 0 0 6px rgba(0, 206, 209, 0.5);
+          box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.5);
         }
         
         .widget-content {
@@ -461,10 +693,10 @@ export default function dashboard() {
           font-size: 2.25rem;
           font-weight: 700;
           line-height: 1;
-          color: #00CED1;
+          color: var(--accent);
           text-shadow: 
-            0 0 10px rgba(0, 206, 209, 0.5),
-            0 0 20px rgba(93, 173, 226, 0.3);
+            0 0 10px rgba(var(--accent-rgb), 0.5),
+            0 0 20px rgba(var(--accent-soft-rgb), 0.3);
         }
         
         .widget-value .unit {
@@ -480,10 +712,10 @@ export default function dashboard() {
           position: relative;
           width: 12px;
           height: 48px;
-          background: rgba(20, 30, 40, 0.6);
+          background: var(--bar-track);
           border-radius: 6px;
           overflow: hidden;
-          border: 1px solid rgba(0, 206, 209, 0.15);
+          border: 1px solid rgba(var(--accent-rgb), 0.15);
           box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
@@ -493,8 +725,8 @@ export default function dashboard() {
           left: 0;
           right: 0;
           height: 0%;
-          background: linear-gradient(180deg, #5DADE2 0%, #00CED1 50%, #20B2AA 100%);
-          box-shadow: 0 0 12px rgba(0, 206, 209, 0.6);
+          background: linear-gradient(180deg, var(--accent-soft) 0%, var(--accent) 50%, var(--accent-deep) 100%);
+          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.6);
           transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
@@ -503,23 +735,115 @@ export default function dashboard() {
           flex-direction: column;
           gap: 10px;
         }
+
+        .connection-pill {
+          background: rgba(var(--accent-rgb), 0.15);
+          border: 1px solid rgba(var(--accent-rgb), 0.35);
+          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.15);
+        }
+
+        .connection-pill.is-disconnected {
+          background: rgba(255, 75, 75, 0.2);
+          border-color: rgba(255, 75, 75, 0.35);
+          box-shadow: 0 0 12px rgba(255, 75, 75, 0.15);
+        }
+
+        .connection-dot {
+          background: var(--accent);
+          box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8);
+        }
+
+        .connection-dot.is-disconnected {
+          background: #ff4b4b;
+          box-shadow: 0 0 8px rgba(255, 75, 75, 0.6);
+        }
+
+        .connection-text {
+          color: var(--text-bright);
+        }
+
+        .time-pill {
+          background: var(--pill-bg);
+          border: 1px solid rgba(var(--accent-rgb), 0.35);
+          box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.12);
+        }
+
+        .time-dot {
+          background: var(--accent);
+          box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8);
+        }
+
+        .time-text {
+          color: var(--text-bright);
+        }
+
+        .theme-switch {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(var(--accent-rgb), 0.35);
+          background: var(--pill-bg);
+          color: var(--text-bright);
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.12);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .theme-switch:hover {
+          transform: translateY(-1px);
+          border-color: rgba(var(--accent-rgb), 0.6);
+          box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.2);
+        }
+
+        .theme-chip {
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: rgba(var(--accent-rgb), 0.2);
+          color: var(--accent);
+          font-size: 0.7rem;
+          letter-spacing: 0.08em;
+        }
+
+        .mode-switch {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(var(--accent-rgb), 0.35);
+          background: var(--pill-bg);
+          color: var(--text-bright);
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.12);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .mode-switch:hover {
+          transform: translateY(-1px);
+          border-color: rgba(var(--accent-rgb), 0.6);
+          box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.2);
+        }
       `}</style>
 
-      <div id="wrap" className="carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden" style={{ borderColor: "rgba(0, 206, 209, 0.2)" }}>
+      <div id="wrap" className={`carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden ${isCleanBackground ? "bg-clean" : "bg-carbon"} bg-dark`} style={{ borderColor: "rgba(0, 206, 209, 0.2)" }}>
         
         {/* Connection Status */}
         <div className="absolute top-4 left-4 z-50">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-sm ${
-            isConnected 
-              ? 'bg-cyan-500/20 border border-cyan-500/40' 
-              : 'bg-red-500/20 border border-red-500/30'
+          <div className={`connection-pill flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-sm ${
+            isConnected ? 'is-connected' : 'is-disconnected'
           }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              isConnected ? 'bg-cyan-400 animate-pulse' : 'bg-red-400'
+            <div className={`connection-dot w-2 h-2 rounded-full ${
+              isConnected ? 'animate-pulse' : 'is-disconnected'
             }`} />
-            <span className={`text-sm font-medium ${
-              isConnected ? 'text-cyan-200' : 'text-red-200'
-            }`}>
+            <span className="connection-text text-sm font-medium">
               {isConnected ? 'Running' : 'Not Connected - Please Connect'}
             </span>
           </div>
@@ -527,10 +851,22 @@ export default function dashboard() {
 
         {/* Pi Time */}
         <div className="absolute top-4 right-4 z-50">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-sm bg-[#0a192f]/60 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-sm font-semibold text-cyan-100 tracking-wider">{currentTime}</span>
+          <div className="time-pill flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-sm">
+            <div className="time-dot w-2 h-2 rounded-full animate-pulse" />
+            <span className="time-text text-sm font-semibold tracking-wider">{currentTime}</span>
           </div>
+        </div>
+
+        {/* Theme Switch */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3">
+          <button type="button" className="theme-switch" onClick={handleThemeCycle}>
+            Theme
+            <span className="theme-chip">{effectiveTheme}</span>
+          </button>
+          <button type="button" className="mode-switch" onClick={handleBackgroundToggle}>
+            Bg
+            <span className="theme-chip">{backgroundMode}</span>
+          </button>
         </div>
 
         {/* Left Widgets */}
