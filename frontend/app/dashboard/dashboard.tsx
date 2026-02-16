@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-type ThemeName = "teal" | "ember" | "emerald" | "sapphire" | "crimson" | "solar";
+type ThemeName = "teal" | "ember" | "emerald" | "sapphire" | "crimson" | "solar" | "lime" | "copper" | "ice";
 type BackgroundMode = "dark-carbon" | "dark-clean";
 
 const THEMES: Record<ThemeName, {
@@ -115,14 +115,62 @@ const THEMES: Record<ThemeName, {
     hiltStroke: "rgba(245, 158, 11, 0.35)",
     hiltGuard: "rgba(245, 158, 11, 0.7)",
   },
+  lime: {
+    accent: "#6EEB83",
+    accentSoft: "#B9FBC0",
+    accentDeep: "#2DC653",
+    rpmTick: "rgba(45, 198, 83, 0.6)",
+    speedTick: "rgba(110, 235, 131, 0.5)",
+    scaleText: "#EFFFF1",
+    scaleTextSecondary: "#A7D7B4",
+    beamMid: "rgba(110, 235, 131, 0.6)",
+    beamEnd: "rgba(185, 251, 192, 1)",
+    glow: "rgba(110, 235, 131, 0.8)",
+    speedText: "#F5FFF7",
+    speedShadow: "rgba(110, 235, 131, 0.25)",
+    hiltStroke: "rgba(110, 235, 131, 0.35)",
+    hiltGuard: "rgba(110, 235, 131, 0.7)",
+  },
+  copper: {
+    accent: "#C97B63",
+    accentSoft: "#F4B183",
+    accentDeep: "#8C4A36",
+    rpmTick: "rgba(140, 74, 54, 0.6)",
+    speedTick: "rgba(201, 123, 99, 0.5)",
+    scaleText: "#F7E9E2",
+    scaleTextSecondary: "#D1B1A6",
+    beamMid: "rgba(201, 123, 99, 0.6)",
+    beamEnd: "rgba(244, 177, 131, 1)",
+    glow: "rgba(201, 123, 99, 0.8)",
+    speedText: "#FFF4EE",
+    speedShadow: "rgba(201, 123, 99, 0.25)",
+    hiltStroke: "rgba(201, 123, 99, 0.35)",
+    hiltGuard: "rgba(201, 123, 99, 0.7)",
+  },
+  ice: {
+    accent: "#5BD6FF",
+    accentSoft: "#A0E9FF",
+    accentDeep: "#1E96C8",
+    rpmTick: "rgba(30, 150, 200, 0.6)",
+    speedTick: "rgba(91, 214, 255, 0.5)",
+    scaleText: "#EAF7FF",
+    scaleTextSecondary: "#B6D9F2",
+    beamMid: "rgba(91, 214, 255, 0.6)",
+    beamEnd: "rgba(160, 233, 255, 1)",
+    glow: "rgba(91, 214, 255, 0.85)",
+    speedText: "#F7FCFF",
+    speedShadow: "rgba(91, 214, 255, 0.25)",
+    hiltStroke: "rgba(91, 214, 255, 0.35)",
+    hiltGuard: "rgba(91, 214, 255, 0.7)",
+  },
 };
 
 const resolveTheme = (value: string | null | undefined): ThemeName => {
-  if (value === "ember" || value === "emerald" || value === "teal" || value === "sapphire" || value === "crimson" || value === "solar") return value;
+  if (value === "ember" || value === "emerald" || value === "teal" || value === "sapphire" || value === "crimson" || value === "solar" || value === "lime" || value === "copper" || value === "ice") return value;
   return "teal";
 };
 
-const THEME_ORDER: ThemeName[] = ["teal", "ember", "emerald", "sapphire", "crimson", "solar"];
+const THEME_ORDER: ThemeName[] = ["teal", "ember", "emerald", "sapphire", "crimson", "solar", "lime", "copper", "ice"];
 const BACKGROUND_ORDER: BackgroundMode[] = ["dark-carbon", "dark-clean"];
 
 type DashboardProps = {
@@ -132,10 +180,15 @@ type DashboardProps = {
 export default function Dashboard({ theme }: DashboardProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const elementsRef = useRef<{ [key: string]: HTMLElement | null }>({});
+  const simValuesRef = useRef({ active: false, speed: 0, rpm: 0, coolant: 20 });
+  const applySimRef = useRef<(() => void) | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("--:--:--");
   const [themeOverride, setThemeOverride] = useState<ThemeName | null>(null);
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("dark-carbon");
+  const [simSpeed, setSimSpeed] = useState(0);
+  const [simRpm, setSimRpm] = useState(0);
+  const [simCoolant, setSimCoolant] = useState(20);
   const themeFromQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("theme") : null;
   const themeName = resolveTheme(theme ?? themeFromQuery);
   const effectiveTheme = themeOverride ?? themeName;
@@ -161,7 +214,7 @@ export default function Dashboard({ theme }: DashboardProps) {
     let rpm = 0;
 
     const cx = 640;
-    const cy = 390;
+    const cy = 398;
     const rOuter = 320;
     const rInner = 250;
     const start = Math.PI * 1.05;
@@ -259,7 +312,7 @@ export default function Dashboard({ theme }: DashboardProps) {
     function drawGauge() {
       if (!canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       // Draw cached scales without double-scaling
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -283,12 +336,16 @@ export default function Dashboard({ theme }: DashboardProps) {
       ctx.stroke();
 
       // Laser-style speed needle with holder
-      const sp = Math.min(speed / 255, 1);
-      const ang = start + (end - start) * sp;
-      const needleLen = rInner - 8;
+      const sp = Math.max(0, Math.min(speed / 255, 1));
+      const targetAngle = start + (end - start) * sp;
+      const pivotY = cy - 12;
+      const targetX = cx + Math.cos(targetAngle) * rInner;
+      const targetY = cy + Math.sin(targetAngle) * rInner;
+      const ang = Math.atan2(targetY - pivotY, targetX - cx);
+      const needleLen = rInner - 2;
 
       ctx.save();
-      ctx.translate(cx, cy);
+      ctx.translate(cx, pivotY);
       ctx.rotate(ang);
 
       // Glow beam
@@ -347,7 +404,7 @@ export default function Dashboard({ theme }: DashboardProps) {
       ctx.shadowBlur = 4;
       ctx.fillText(String(speed), cx, cy - 140);
       ctx.shadowBlur = 0;
-      
+
       // km/h Einheit
       ctx.font = "20px 'Arial'";
       ctx.fillStyle = activeTheme.accent;
@@ -394,6 +451,20 @@ export default function Dashboard({ theme }: DashboardProps) {
       });
     };
 
+    const applySimValues = () => {
+      speed = simValuesRef.current.speed;
+      rpm = simValuesRef.current.rpm;
+      const coolant = simValuesRef.current.coolant;
+      const el = elementsRef.current.temp;
+      const bar = elementsRef.current.tempBar;
+      if (el) el.innerHTML = `${coolant}<span class="unit">°C</span>`;
+      setBarLevel(bar, (coolant / 120) * 100);
+      needsRedraw = true;
+      requestDraw();
+    };
+
+    applySimRef.current = applySimValues;
+
     let lastMessageTime = 0;
     const messageThrottle = 16; // ~60 FPS
 
@@ -401,6 +472,7 @@ export default function Dashboard({ theme }: DashboardProps) {
       try {
         const now = Date.now();
         const data = JSON.parse(ev.data);
+        const isSimActive = simValuesRef.current.active;
         
         // Update connection status based on UART connection
         if (data.UART_CONNECTED !== undefined) {
@@ -420,13 +492,24 @@ export default function Dashboard({ theme }: DashboardProps) {
         
         const oldRpm = rpm;
         const oldSpeed = speed;
-        
-        if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
-        if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
+
+        if (isSimActive) {
+          rpm = simValuesRef.current.rpm;
+          speed = simValuesRef.current.speed;
+        } else {
+          if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
+          if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
+        }
         
         const els = elementsRef.current;
 
-        if (data.COOLANT !== undefined) {
+        if (isSimActive) {
+          const val = simValuesRef.current.coolant;
+          const el = els.temp;
+          const bar = els.tempBar;
+          if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
+          setBarLevel(bar, (val / 120) * 100);
+        } else if (data.COOLANT !== undefined) {
           const val = parseInt(data.COOLANT, 10);
           const el = els.temp;
           const bar = els.tempBar;
@@ -513,10 +596,28 @@ export default function Dashboard({ theme }: DashboardProps) {
     });
   };
 
+  const handleSimSpeedChange = (value: number) => {
+    setSimSpeed(value);
+    simValuesRef.current = { ...simValuesRef.current, active: true, speed: value };
+    applySimRef.current?.();
+  };
+
+  const handleSimRpmChange = (value: number) => {
+    setSimRpm(value);
+    simValuesRef.current = { ...simValuesRef.current, active: true, rpm: value };
+    applySimRef.current?.();
+  };
+
+  const handleSimCoolantChange = (value: number) => {
+    setSimCoolant(value);
+    simValuesRef.current = { ...simValuesRef.current, active: true, coolant: value };
+    applySimRef.current?.();
+  };
+
   const isCleanBackground = backgroundMode.includes("clean");
 
   return (
-    <div className={`w-full h-full flex justify-center items-center bg-gray-900 theme-${effectiveTheme}`}>
+    <div className={`w-full h-full flex flex-col justify-center items-center gap-4 bg-gray-900 theme-${effectiveTheme}`}>
       <style>{`
         .theme-teal {
           --accent: #00CED1;
@@ -576,6 +677,36 @@ export default function Dashboard({ theme }: DashboardProps) {
           --accent-soft-rgb: 252, 211, 77;
           --text-muted: #FACC15;
           --text-bright: #FFF9ED;
+        }
+
+        .theme-lime {
+          --accent: #6EEB83;
+          --accent-soft: #B9FBC0;
+          --accent-deep: #2DC653;
+          --accent-rgb: 110, 235, 131;
+          --accent-soft-rgb: 185, 251, 192;
+          --text-muted: #A7D7B4;
+          --text-bright: #F5FFF7;
+        }
+
+        .theme-copper {
+          --accent: #C97B63;
+          --accent-soft: #F4B183;
+          --accent-deep: #8C4A36;
+          --accent-rgb: 201, 123, 99;
+          --accent-soft-rgb: 244, 177, 131;
+          --text-muted: #D1B1A6;
+          --text-bright: #FFF4EE;
+        }
+
+        .theme-ice {
+          --accent: #5BD6FF;
+          --accent-soft: #A0E9FF;
+          --accent-deep: #1E96C8;
+          --accent-rgb: 91, 214, 255;
+          --accent-soft-rgb: 160, 233, 255;
+          --text-muted: #B6D9F2;
+          --text-bright: #F7FCFF;
         }
 
         .carbon { 
@@ -831,6 +962,73 @@ export default function Dashboard({ theme }: DashboardProps) {
           border-color: rgba(var(--accent-rgb), 0.6);
           box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.2);
         }
+
+        .sim-panel {
+          width: 1280px;
+          margin-top: 16px;
+          padding: 16px 20px;
+          border-radius: 16px;
+          background: rgba(8, 12, 16, 0.7);
+          border: 1px solid rgba(var(--accent-rgb), 0.2);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+          backdrop-filter: blur(8px);
+        }
+
+        .sim-row {
+          display: grid;
+          grid-template-columns: 140px 1fr 80px;
+          align-items: center;
+          gap: 16px;
+          margin: 10px 0;
+        }
+
+        .sim-label {
+          font-size: 0.85rem;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+
+        .sim-value {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: var(--text-bright);
+          text-align: right;
+        }
+
+        .sim-range {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 6px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.2), rgba(var(--accent-soft-rgb), 0.6));
+          outline: none;
+        }
+
+        .sim-range::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: var(--accent);
+          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.6);
+          border: 2px solid rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+        }
+
+        .sim-range::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: var(--accent);
+          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.6);
+          border: 2px solid rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+        }
+
       `}</style>
 
       <div id="wrap" className={`carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden ${isCleanBackground ? "bg-clean" : "bg-carbon"} bg-dark`} style={{ borderColor: "rgba(0, 206, 209, 0.2)" }}>
@@ -948,6 +1146,50 @@ export default function Dashboard({ theme }: DashboardProps) {
 
         </div>
 
+      </div>
+
+      <div className="sim-panel">
+        <div className="sim-row">
+          <div className="sim-label">RPM</div>
+          <input
+            className="sim-range"
+            type="range"
+            min={0}
+            max={8000}
+            step={50}
+            value={simRpm}
+            onChange={(event) => handleSimRpmChange(Number(event.target.value))}
+          />
+          <div className="sim-value">{simRpm}</div>
+        </div>
+
+        <div className="sim-row">
+          <div className="sim-label">Speed</div>
+          <input
+            className="sim-range"
+            type="range"
+            min={0}
+            max={255}
+            step={1}
+            value={simSpeed}
+            onChange={(event) => handleSimSpeedChange(Number(event.target.value))}
+          />
+          <div className="sim-value">{simSpeed} km/h</div>
+        </div>
+
+        <div className="sim-row">
+          <div className="sim-label">Coolant</div>
+          <input
+            className="sim-range"
+            type="range"
+            min={0}
+            max={120}
+            step={1}
+            value={simCoolant}
+            onChange={(event) => handleSimCoolantChange(Number(event.target.value))}
+          />
+          <div className="sim-value">{simCoolant}°C</div>
+        </div>
       </div>
     </div>
   );
