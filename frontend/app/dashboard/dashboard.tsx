@@ -228,15 +228,10 @@ type DashboardProps = {
 export default function Dashboard({ theme }: DashboardProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const elementsRef = useRef<{ [key: string]: HTMLElement | null }>({});
-  const simValuesRef = useRef({ active: false, speed: 0, rpm: 0, coolant: 20 });
-  const applySimRef = useRef<(() => void) | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>("--:--:--");
   const [themeOverride, setThemeOverride] = useState<ThemeName | null>(null);
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>("dark-carbon");
-  const [simSpeed, setSimSpeed] = useState(0);
-  const [simRpm, setSimRpm] = useState(0);
-  const [simCoolant, setSimCoolant] = useState(20);
   const [shiftIndicator, setShiftIndicator] = useState<"upshift" | "downshift" | null>(null);
   const [warnings, setWarnings] = useState({
     oil: false,
@@ -508,20 +503,6 @@ export default function Dashboard({ theme }: DashboardProps) {
       });
     };
 
-    const applySimValues = () => {
-      speed = simValuesRef.current.speed;
-      rpm = simValuesRef.current.rpm;
-      const coolant = simValuesRef.current.coolant;
-      const el = elementsRef.current.temp;
-      const bar = elementsRef.current.tempBar;
-      if (el) el.innerHTML = `${coolant}<span class="unit">°C</span>`;
-      setBarLevel(bar, (coolant / 120) * 100);
-      needsRedraw = true;
-      requestDraw();
-    };
-
-    applySimRef.current = applySimValues;
-
     let lastMessageTime = 0;
     const messageThrottle = 16; // ~60 FPS
 
@@ -529,7 +510,6 @@ export default function Dashboard({ theme }: DashboardProps) {
       try {
         const now = Date.now();
         const data = JSON.parse(ev.data);
-        const isSimActive = simValuesRef.current.active;
         
         // Update connection status based on UART connection
         if (data.UART_CONNECTED !== undefined) {
@@ -550,18 +530,13 @@ export default function Dashboard({ theme }: DashboardProps) {
         const oldRpm = rpm;
         const oldSpeed = speed;
 
-        if (isSimActive) {
-          rpm = simValuesRef.current.rpm;
-          speed = simValuesRef.current.speed;
-        } else {
-          if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
-          if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
-        }
+        if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
+        if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
         
         // Shift indicator logic
-        if (rpm < 1000) {
+        if (rpm < 1000 && speed >= 20) {
           setShiftIndicator("downshift");
-        } else if (rpm > 4000) {
+        } else if (rpm > 4000 && speed < 140) {
           setShiftIndicator("upshift");
         } else {
           setShiftIndicator(null);
@@ -571,14 +546,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
         const newWarnings = { ...warnings };
 
-        if (isSimActive) {
-          const val = simValuesRef.current.coolant;
-          const el = els.temp;
-          const bar = els.tempBar;
-          if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
-          setBarLevel(bar, (val / 120) * 100);
-          newWarnings.coolant = val > 100;
-        } else if (data.COOLANT !== undefined) {
+        if (data.COOLANT !== undefined) {
           const val = parseInt(data.COOLANT, 10);
           const el = els.temp;
           const bar = els.tempBar;
@@ -673,28 +641,10 @@ export default function Dashboard({ theme }: DashboardProps) {
     });
   };
 
-  const handleSimSpeedChange = (value: number) => {
-    setSimSpeed(value);
-    simValuesRef.current = { ...simValuesRef.current, active: true, speed: value };
-    applySimRef.current?.();
-  };
-
-  const handleSimRpmChange = (value: number) => {
-    setSimRpm(value);
-    simValuesRef.current = { ...simValuesRef.current, active: true, rpm: value };
-    applySimRef.current?.();
-  };
-
-  const handleSimCoolantChange = (value: number) => {
-    setSimCoolant(value);
-    simValuesRef.current = { ...simValuesRef.current, active: true, coolant: value };
-    applySimRef.current?.();
-  };
-
   const isCleanBackground = backgroundMode.includes("clean");
 
   return (
-    <div className={`w-full h-full flex flex-col justify-center items-center gap-4 bg-gray-900 theme-${effectiveTheme}`}>
+    <div className={`w-full h-full flex justify-center items-center bg-gray-900 theme-${effectiveTheme}`}>
       <style>{`
         .theme-teal {
           --accent: #00CED1;
@@ -1093,72 +1043,6 @@ export default function Dashboard({ theme }: DashboardProps) {
           box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.2);
         }
 
-        .sim-panel {
-          width: 1280px;
-          margin-top: 16px;
-          padding: 16px 20px;
-          border-radius: 16px;
-          background: rgba(8, 12, 16, 0.7);
-          border: 1px solid rgba(var(--accent-rgb), 0.2);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-          backdrop-filter: blur(8px);
-        }
-
-        .sim-row {
-          display: grid;
-          grid-template-columns: 140px 1fr 80px;
-          align-items: center;
-          gap: 16px;
-          margin: 10px 0;
-        }
-
-        .sim-label {
-          font-size: 0.85rem;
-          font-weight: 700;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          color: var(--text-muted);
-        }
-
-        .sim-value {
-          font-size: 0.95rem;
-          font-weight: 700;
-          color: var(--text-bright);
-          text-align: right;
-        }
-
-        .sim-range {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 100%;
-          height: 6px;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.2), rgba(var(--accent-soft-rgb), 0.6));
-          outline: none;
-        }
-
-        .sim-range::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: var(--accent);
-          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.6);
-          border: 2px solid rgba(255, 255, 255, 0.6);
-          cursor: pointer;
-        }
-
-        .sim-range::-moz-range-thumb {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: var(--accent);
-          box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.6);
-          border: 2px solid rgba(255, 255, 255, 0.6);
-          cursor: pointer;
-        }
-
         .shift-arrow-left {
           position: absolute;
           top: 80px;
@@ -1191,19 +1075,11 @@ export default function Dashboard({ theme }: DashboardProps) {
         }
 
         .widget-warning {
-          animation: blink-warning 1s ease-in-out infinite;
-          border-color: rgba(255, 50, 50, 0.8) !important;
-        }
-
-        @keyframes blink-warning {
-          0%, 100% {
-            background: linear-gradient(135deg, rgba(20, 30, 40, 0.5) 0%, rgba(15, 25, 35, 0.7) 100%);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(var(--accent-rgb), 0.1);
-          }
-          50% {
-            background: linear-gradient(135deg, rgba(255, 30, 30, 0.25) 0%, rgba(200, 20, 20, 0.35) 100%);
-            box-shadow: 0 4px 24px rgba(255, 50, 50, 0.5), inset 0 1px 0 rgba(255, 50, 50, 0.3);
-          }
+          border-color: rgba(255, 50, 50, 0.9) !important;
+          box-shadow: 
+            0 0 20px rgba(255, 50, 50, 0.4),
+            0 4px 16px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 50, 50, 0.2);
         }
 
         .warning-icon {
@@ -1362,50 +1238,6 @@ export default function Dashboard({ theme }: DashboardProps) {
 
         </div>
 
-      </div>
-
-      <div className="sim-panel">
-        <div className="sim-row">
-          <div className="sim-label">RPM</div>
-          <input
-            className="sim-range"
-            type="range"
-            min={0}
-            max={8000}
-            step={50}
-            value={simRpm}
-            onChange={(event) => handleSimRpmChange(Number(event.target.value))}
-          />
-          <div className="sim-value">{simRpm}</div>
-        </div>
-
-        <div className="sim-row">
-          <div className="sim-label">Speed</div>
-          <input
-            className="sim-range"
-            type="range"
-            min={0}
-            max={255}
-            step={1}
-            value={simSpeed}
-            onChange={(event) => handleSimSpeedChange(Number(event.target.value))}
-          />
-          <div className="sim-value">{simSpeed} km/h</div>
-        </div>
-
-        <div className="sim-row">
-          <div className="sim-label">Coolant</div>
-          <input
-            className="sim-range"
-            type="range"
-            min={0}
-            max={120}
-            step={1}
-            value={simCoolant}
-            onChange={(event) => handleSimCoolantChange(Number(event.target.value))}
-          />
-          <div className="sim-value">{simCoolant}°C</div>
-        </div>
       </div>
     </div>
   );
