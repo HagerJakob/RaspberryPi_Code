@@ -147,32 +147,61 @@ export default function dashboard() {
       ctx.arc(cx, cy, rOuter, start, rpmEnd);
       ctx.stroke();
 
-      // Speed needle - spitzer Pfeil
+      // Laser-style speed needle with holder
       const sp = Math.min(speed / 255, 1);
       const ang = start + (end - start) * sp;
-      
-      // Berechne Pfeilspitze
-      const tipX = cx + Math.cos(ang) * rInner;
-      const tipY = cy + Math.sin(ang) * rInner;
-      
-      // Berechne Basis-Punkte (perpendikular zum Pfeil)
-      const baseWidth = 8;
-      const baseLength = 30;
-      const perpAngle = ang + Math.PI / 2;
-      
-      const base1X = cx + Math.cos(perpAngle) * baseWidth - Math.cos(ang) * baseLength;
-      const base1Y = cy + Math.sin(perpAngle) * baseWidth - Math.sin(ang) * baseLength;
-      const base2X = cx - Math.cos(perpAngle) * baseWidth - Math.cos(ang) * baseLength;
-      const base2Y = cy - Math.sin(perpAngle) * baseWidth - Math.sin(ang) * baseLength;
-      
-      // Zeichne Pfeil als gefülltes Dreieck
+      const needleLen = rInner - 8;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(ang);
+
+      // Glow beam
+      const beamGrad = ctx.createLinearGradient(0, 0, needleLen, 0);
+      beamGrad.addColorStop(0, "rgba(0, 206, 209, 0.0)");
+      beamGrad.addColorStop(0.2, "rgba(0, 206, 209, 0.6)");
+      beamGrad.addColorStop(1, "rgba(93, 173, 226, 1)");
+
+      ctx.shadowColor = "rgba(0, 206, 209, 0.8)";
+      ctx.shadowBlur = 18;
+      ctx.strokeStyle = beamGrad;
+      ctx.lineWidth = 6;
       ctx.beginPath();
-      ctx.moveTo(tipX, tipY);
-      ctx.lineTo(base1X, base1Y);
-      ctx.lineTo(base2X, base2Y);
-      ctx.closePath();
-      ctx.fillStyle = "#00CED1";
+      ctx.moveTo(20, 0);
+      ctx.lineTo(needleLen, 0);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Inner core for lightsaber effect
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(26, 0);
+      ctx.lineTo(needleLen - 8, 0);
+      ctx.stroke();
+
+      // Holder (hilt + guard)
+      ctx.fillStyle = "#0b1418";
+      ctx.strokeStyle = "rgba(0, 206, 209, 0.35)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-16, -9, 42, 18, 7);
       ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#0f1f24";
+      ctx.beginPath();
+      ctx.roundRect(-4, -14, 14, 28, 6);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(0, 206, 209, 0.6)";
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(7, -13);
+      ctx.lineTo(7, 13);
+      ctx.stroke();
+
+      ctx.restore();
 
       // Speed value
       ctx.font = "small-caps bold 120px 'Verdana'";
