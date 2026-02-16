@@ -238,6 +238,14 @@ export default function Dashboard({ theme }: DashboardProps) {
   const [simRpm, setSimRpm] = useState(0);
   const [simCoolant, setSimCoolant] = useState(20);
   const [shiftIndicator, setShiftIndicator] = useState<"upshift" | "downshift" | null>(null);
+  const [warnings, setWarnings] = useState({
+    oil: false,
+    fuel: false,
+    coolant: false,
+    voltage: false,
+    boost: false,
+    oilpress: false,
+  });
   const themeFromQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("theme") : null;
   const themeName = resolveTheme(theme ?? themeFromQuery);
   const effectiveTheme = themeOverride ?? themeName;
@@ -561,18 +569,22 @@ export default function Dashboard({ theme }: DashboardProps) {
         
         const els = elementsRef.current;
 
+        const newWarnings = { ...warnings };
+
         if (isSimActive) {
           const val = simValuesRef.current.coolant;
           const el = els.temp;
           const bar = els.tempBar;
           if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
           setBarLevel(bar, (val / 120) * 100);
+          newWarnings.coolant = val > 100;
         } else if (data.COOLANT !== undefined) {
           const val = parseInt(data.COOLANT, 10);
           const el = els.temp;
           const bar = els.tempBar;
           if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
           setBarLevel(bar, (val / 120) * 100);
+          newWarnings.coolant = val > 100;
         }
         if (data.OIL !== undefined) {
           const val = parseInt(data.OIL, 10);
@@ -580,6 +592,7 @@ export default function Dashboard({ theme }: DashboardProps) {
           const bar = els.oilBar;
           if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
           setBarLevel(bar, (val / 120) * 100);
+          newWarnings.oil = val > 110;
         }
         if (data.FUEL !== undefined) {
           const val = parseInt(data.FUEL, 10);
@@ -587,6 +600,7 @@ export default function Dashboard({ theme }: DashboardProps) {
           const bar = els.fuelBar;
           if (el) el.innerHTML = `${val}<span class="unit">%</span>`;
           setBarLevel(bar, val);
+          newWarnings.fuel = val < 20;
         }
         if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
           const voltage = parseFloat(data.VOLTAGE || data.BATTERY);
@@ -598,6 +612,7 @@ export default function Dashboard({ theme }: DashboardProps) {
             const vMax = 12.3;
             const vPercent = ((voltage - vMin) / (vMax - vMin)) * 100;
             setBarLevel(bar, vPercent);
+            newWarnings.voltage = voltage < 11.4;
           }
         }
         if (data.BOOST !== undefined) {
@@ -607,6 +622,7 @@ export default function Dashboard({ theme }: DashboardProps) {
           if (Number.isFinite(val)) {
             if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">bar</span>`;
             setBarLevel(bar, (val / 2) * 100);
+            newWarnings.boost = val > 1.8;
           }
         }
         if (data.OILPRESS !== undefined) {
@@ -617,8 +633,11 @@ export default function Dashboard({ theme }: DashboardProps) {
             if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">bar</span>`;
             // OIL PRESSURE: 0-5 bar
             setBarLevel(bar, (val / 5) * 100);
+            newWarnings.oilpress = val < 0.5 || val > 4.5;
           }
         }
+        
+        setWarnings(newWarnings);
 
         if (rpm !== oldRpm || speed !== oldSpeed) {
           needsRedraw = true;
@@ -1171,6 +1190,47 @@ export default function Dashboard({ theme }: DashboardProps) {
           50% { opacity: 1; transform: scale(1.15); }
         }
 
+        .widget-warning {
+          animation: blink-warning 1s ease-in-out infinite;
+          border-color: rgba(255, 50, 50, 0.8) !important;
+        }
+
+        @keyframes blink-warning {
+          0%, 100% {
+            background: linear-gradient(135deg, rgba(20, 30, 40, 0.5) 0%, rgba(15, 25, 35, 0.7) 100%);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(var(--accent-rgb), 0.1);
+          }
+          50% {
+            background: linear-gradient(135deg, rgba(255, 30, 30, 0.25) 0%, rgba(200, 20, 20, 0.35) 100%);
+            box-shadow: 0 4px 24px rgba(255, 50, 50, 0.5), inset 0 1px 0 rgba(255, 50, 50, 0.3);
+          }
+        }
+
+        .warning-icon {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          font-size: 1.2rem;
+          color: #FF3333;
+          text-shadow: 0 0 8px rgba(255, 50, 50, 0.8);
+          animation: pulse-warning-icon 0.8s ease-in-out infinite;
+        }
+
+        .warning-icon-left {
+          position: absolute;
+          top: 8px;
+          left: 8px;
+          font-size: 1.2rem;
+          color: #FF3333;
+          text-shadow: 0 0 8px rgba(255, 50, 50, 0.8);
+          animation: pulse-warning-icon 0.8s ease-in-out infinite;
+        }
+
+        @keyframes pulse-warning-icon {
+          0%, 100% { opacity: 0.9; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+
       `}</style>
 
       <div id="wrap" className={`carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden ${isCleanBackground ? "bg-clean" : "bg-carbon"} bg-dark`} style={{ borderColor: "rgba(0, 206, 209, 0.2)" }}>
@@ -1221,7 +1281,8 @@ export default function Dashboard({ theme }: DashboardProps) {
         <div className="absolute left-4 top-16 bottom-4 w-[200px] widgets-container">
           
           {/* Oil Temp Widget */}
-          <div className="metric-widget">
+          <div className={`metric-widget ${warnings.oil ? 'widget-warning' : ''}`}>
+            {warnings.oil && <div className="warning-icon">⚠</div>}
             <div className="widget-label">Oil Temp</div>
             <div className="widget-content">
               <div id="oil" className="widget-value">60°C</div>
@@ -1232,7 +1293,8 @@ export default function Dashboard({ theme }: DashboardProps) {
           </div>
 
           {/* Fuel Widget */}
-          <div className="metric-widget">
+          <div className={`metric-widget ${warnings.fuel ? 'widget-warning' : ''}`}>
+            {warnings.fuel && <div className="warning-icon">⚠</div>}
             <div className="widget-label">Fuel Level</div>
             <div className="widget-content">
               <div id="fuel" className="widget-value">73%</div>
@@ -1243,7 +1305,8 @@ export default function Dashboard({ theme }: DashboardProps) {
           </div>
 
           {/* Coolant Widget */}
-          <div className="metric-widget">
+          <div className={`metric-widget ${warnings.coolant ? 'widget-warning' : ''}`}>
+            {warnings.coolant && <div className="warning-icon">⚠</div>}
             <div className="widget-label">Coolant Temp</div>
             <div className="widget-content">
               <div id="temp" className="widget-value">20°C</div>
@@ -1262,7 +1325,8 @@ export default function Dashboard({ theme }: DashboardProps) {
         <div className="absolute right-4 top-16 bottom-4 w-[200px] widgets-container">
           
           {/* Battery Widget */}
-          <div className="metric-widget">
+          <div className={`metric-widget ${warnings.voltage ? 'widget-warning' : ''}`}>
+            {warnings.voltage && <div className="warning-icon-left">⚠</div>}
             <div className="widget-label-right">Battery</div>
             <div className="widget-content">
               <div className="widget-bar-container">
@@ -1273,7 +1337,8 @@ export default function Dashboard({ theme }: DashboardProps) {
           </div>
 
           {/* Boost Widget */}
-          <div className="metric-widget">
+          <div className={`metric-widget ${warnings.boost ? 'widget-warning' : ''}`}>
+            {warnings.boost && <div className="warning-icon-left">⚠</div>}
             <div className="widget-label-right">Boost Pressure</div>
             <div className="widget-content">
               <div className="widget-bar-container">
@@ -1284,7 +1349,8 @@ export default function Dashboard({ theme }: DashboardProps) {
           </div>
 
           {/* Oil Pressure Widget */}
-          <div className="metric-widget">
+          <div className={`metric-widget ${warnings.oilpress ? 'widget-warning' : ''}`}>
+            {warnings.oilpress && <div className="warning-icon-left">⚠</div>}
             <div className="widget-label-right">Oil Pressure</div>
             <div className="widget-content">
               <div className="widget-bar-container">
