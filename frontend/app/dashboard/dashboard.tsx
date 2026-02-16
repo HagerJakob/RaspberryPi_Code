@@ -813,6 +813,29 @@ export default function Dashboard({ theme }: DashboardProps) {
           box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.5);
         }
         
+        .widget-label-right {
+          font-size: 0.9rem;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          justify-content: flex-end;
+          width: 100%;
+        }
+        
+        .widget-label-right::after {
+          content: '';
+          width: 2px;
+          height: 10px;
+          background: linear-gradient(180deg, var(--accent) 0%, var(--accent-soft) 100%);
+          border-radius: 2px;
+          box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.5);
+        }
+        
         .widget-content {
           display: flex;
           align-items: center;
@@ -1113,7 +1136,7 @@ export default function Dashboard({ theme }: DashboardProps) {
           
           {/* Battery Widget */}
           <div className="metric-widget">
-            <div className="widget-label">Battery</div>
+            <div className="widget-label-right">Battery</div>
             <div className="widget-content">
               <div className="widget-bar-container">
                 <div id="voltage-bar" className="widget-bar-fill"></div>
@@ -1124,7 +1147,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
           {/* Boost Widget */}
           <div className="metric-widget">
-            <div className="widget-label">Boost Pressure</div>
+            <div className="widget-label-right">Boost Pressure</div>
             <div className="widget-content">
               <div className="widget-bar-container">
                 <div id="boost-bar" className="widget-bar-fill"></div>
@@ -1135,7 +1158,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
           {/* Oil Pressure Widget */}
           <div className="metric-widget">
-            <div className="widget-label">Oil Pressure</div>
+            <div className="widget-label-right">Oil Pressure</div>
             <div className="widget-content">
               <div className="widget-bar-container">
                 <div id="oilpress-bar" className="widget-bar-fill"></div>
