@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-type ThemeName = "teal" | "ember" | "emerald" | "sapphire" | "crimson" | "solar" | "lime" | "copper" | "ice";
+type ThemeName = "teal" | "ember" | "emerald" | "sapphire" | "crimson" | "solar" | "lime" | "copper" | "ice" | "night" | "track" | "retro";
 type BackgroundMode = "dark-carbon" | "dark-clean";
 
 const THEMES: Record<ThemeName, {
@@ -163,6 +163,54 @@ const THEMES: Record<ThemeName, {
     hiltStroke: "rgba(91, 214, 255, 0.35)",
     hiltGuard: "rgba(91, 214, 255, 0.7)",
   },
+  night: {
+    accent: "#FFFFFF",
+    accentSoft: "#D4D4D4",
+    accentDeep: "#A0A0A0",
+    rpmTick: "rgba(180, 180, 180, 0.6)",
+    speedTick: "rgba(255, 255, 255, 0.5)",
+    scaleText: "#F5F5F5",
+    scaleTextSecondary: "#9E9E9E",
+    beamMid: "rgba(255, 255, 255, 0.6)",
+    beamEnd: "rgba(212, 212, 212, 1)",
+    glow: "rgba(255, 255, 255, 0.8)",
+    speedText: "#FFFFFF",
+    speedShadow: "rgba(255, 255, 255, 0.2)",
+    hiltStroke: "rgba(255, 255, 255, 0.35)",
+    hiltGuard: "rgba(255, 255, 255, 0.6)",
+  },
+  track: {
+    accent: "#FF0040",
+    accentSoft: "#FF4081",
+    accentDeep: "#C40033",
+    rpmTick: "rgba(196, 0, 51, 0.6)",
+    speedTick: "rgba(255, 0, 64, 0.5)",
+    scaleText: "#FFEBF0",
+    scaleTextSecondary: "#FF8AA5",
+    beamMid: "rgba(255, 0, 64, 0.6)",
+    beamEnd: "rgba(255, 64, 129, 1)",
+    glow: "rgba(255, 0, 64, 0.9)",
+    speedText: "#FFFFFF",
+    speedShadow: "rgba(255, 0, 64, 0.3)",
+    hiltStroke: "rgba(255, 0, 64, 0.4)",
+    hiltGuard: "rgba(255, 0, 64, 0.8)",
+  },
+  retro: {
+    accent: "#FF00FF",
+    accentSoft: "#FF69B4",
+    accentDeep: "#8B008B",
+    rpmTick: "rgba(139, 0, 139, 0.6)",
+    speedTick: "rgba(255, 0, 255, 0.5)",
+    scaleText: "#FFEBFF",
+    scaleTextSecondary: "#E896E8",
+    beamMid: "rgba(255, 0, 255, 0.6)",
+    beamEnd: "rgba(255, 105, 180, 1)",
+    glow: "rgba(255, 0, 255, 0.85)",
+    speedText: "#FFF0FF",
+    speedShadow: "rgba(255, 0, 255, 0.25)",
+    hiltStroke: "rgba(255, 0, 255, 0.35)",
+    hiltGuard: "rgba(255, 0, 255, 0.7)",
+  },
 };
 
 const resolveTheme = (value: string | null | undefined): ThemeName => {
@@ -170,7 +218,7 @@ const resolveTheme = (value: string | null | undefined): ThemeName => {
   return "teal";
 };
 
-const THEME_ORDER: ThemeName[] = ["teal", "ember", "emerald", "sapphire", "crimson", "solar", "lime", "copper", "ice"];
+const THEME_ORDER: ThemeName[] = ["teal", "ember", "emerald", "sapphire", "crimson", "solar", "lime", "copper", "ice", "night", "track", "retro"];
 const BACKGROUND_ORDER: BackgroundMode[] = ["dark-carbon", "dark-clean"];
 
 type DashboardProps = {
@@ -189,6 +237,7 @@ export default function Dashboard({ theme }: DashboardProps) {
   const [simSpeed, setSimSpeed] = useState(0);
   const [simRpm, setSimRpm] = useState(0);
   const [simCoolant, setSimCoolant] = useState(20);
+  const [shiftIndicator, setShiftIndicator] = useState<"upshift" | "downshift" | null>(null);
   const themeFromQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("theme") : null;
   const themeName = resolveTheme(theme ?? themeFromQuery);
   const effectiveTheme = themeOverride ?? themeName;
@@ -501,6 +550,15 @@ export default function Dashboard({ theme }: DashboardProps) {
           if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
         }
         
+        // Shift indicator logic
+        if (rpm < 1000) {
+          setShiftIndicator("downshift");
+        } else if (rpm > 4000) {
+          setShiftIndicator("upshift");
+        } else {
+          setShiftIndicator(null);
+        }
+        
         const els = elementsRef.current;
 
         if (isSimActive) {
@@ -707,6 +765,36 @@ export default function Dashboard({ theme }: DashboardProps) {
           --accent-soft-rgb: 160, 233, 255;
           --text-muted: #B6D9F2;
           --text-bright: #F7FCFF;
+        }
+
+        .theme-night {
+          --accent: #FFFFFF;
+          --accent-soft: #D4D4D4;
+          --accent-deep: #A0A0A0;
+          --accent-rgb: 255, 255, 255;
+          --accent-soft-rgb: 212, 212, 212;
+          --text-muted: #9E9E9E;
+          --text-bright: #FFFFFF;
+        }
+
+        .theme-track {
+          --accent: #FF0040;
+          --accent-soft: #FF4081;
+          --accent-deep: #C40033;
+          --accent-rgb: 255, 0, 64;
+          --accent-soft-rgb: 255, 64, 129;
+          --text-muted: #FF8AA5;
+          --text-bright: #FFFFFF;
+        }
+
+        .theme-retro {
+          --accent: #FF00FF;
+          --accent-soft: #FF69B4;
+          --accent-deep: #8B008B;
+          --accent-rgb: 255, 0, 255;
+          --accent-soft-rgb: 255, 105, 180;
+          --text-muted: #E896E8;
+          --text-bright: #FFF0FF;
         }
 
         .carbon { 
@@ -1052,6 +1140,37 @@ export default function Dashboard({ theme }: DashboardProps) {
           cursor: pointer;
         }
 
+        .shift-arrow-left {
+          position: absolute;
+          top: 80px;
+          left: 280px;
+          z-index: 100;
+          font-size: 4rem;
+          line-height: 1;
+          color: var(--accent);
+          text-shadow: 0 0 20px rgba(var(--accent-rgb), 0.8), 0 0 40px rgba(var(--accent-rgb), 0.5);
+          animation: pulse-shift 0.6s ease-in-out infinite;
+          filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 0.9));
+        }
+
+        .shift-arrow-right {
+          position: absolute;
+          top: 80px;
+          right: 280px;
+          z-index: 100;
+          font-size: 4rem;
+          line-height: 1;
+          color: var(--accent);
+          text-shadow: 0 0 20px rgba(var(--accent-rgb), 0.8), 0 0 40px rgba(var(--accent-rgb), 0.5);
+          animation: pulse-shift 0.6s ease-in-out infinite;
+          filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 0.9));
+        }
+
+        @keyframes pulse-shift {
+          0%, 100% { opacity: 0.85; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.15); }
+        }
+
       `}</style>
 
       <div id="wrap" className={`carbon w-[1280px] h-[400px] rounded-2xl shadow-2xl relative border flex overflow-hidden ${isCleanBackground ? "bg-clean" : "bg-carbon"} bg-dark`} style={{ borderColor: "rgba(0, 206, 209, 0.2)" }}>
@@ -1089,6 +1208,14 @@ export default function Dashboard({ theme }: DashboardProps) {
             <span className="theme-chip">{backgroundMode}</span>
           </button>
         </div>
+
+        {/* Shift Indicators */}
+        {shiftIndicator === "downshift" && (
+          <div className="shift-arrow-left">↓</div>
+        )}
+        {shiftIndicator === "upshift" && (
+          <div className="shift-arrow-right">↑</div>
+        )}
 
         {/* Left Widgets */}
         <div className="absolute left-4 top-16 bottom-4 w-[200px] widgets-container">
