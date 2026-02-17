@@ -1,10 +1,12 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import serial
 import asyncio
 import logging
 import random
 import platform
+import os
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from db import DatabaseConnection
@@ -23,7 +25,8 @@ logger = logging.getLogger(__name__)
 # Globale Variablen
 ser = None
 connected_clients = set()
-db = DatabaseConnection()
+db_url = os.getenv("DATABASE_URL", "database.db")
+db = DatabaseConnection(db_url)
 aggregator = DataAggregator()
 
 # Konstanten
@@ -231,6 +234,16 @@ async def get_logs_10sec(limit: int = 60):
     """Holt die letzten 10-Sekunden Logs"""
     logs = db.get_latest_logs_10sec(AUTO_ID, limit)
     return {"logs": logs}
+
+@app.get("/api/database/download")
+async def download_database():
+    """Lädt die Datenbank-Datei herunter"""
+    db_path = db.db_path
+    return FileResponse(
+        path=db_path,
+        filename="database.db",
+        media_type="application/octet-stream"
+    )
 
 
 @app.websocket("/ws")

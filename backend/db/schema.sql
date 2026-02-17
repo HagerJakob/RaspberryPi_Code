@@ -1,9 +1,6 @@
-drop table if exists logs_1sec;
-drop table if exists logs_10sec;
-drop table if exists auto;
-drop table if exists owners;
+-- Erstelle Tabellen nur wenn sie nicht existieren (für Persistenz)
 
-create table auto (
+create table if not exists auto (
     id serial primary key,
     owner int references owners(id) on delete cascade,
     make varchar(50) not null,
@@ -15,7 +12,7 @@ create table auto (
 );
 
 -- 1-Sekunden-Durchschnitte für schnelle Werte
-create table logs_1sec (
+create table if not exists logs_1sec (
     id serial primary key,
     auto_id int references auto(id) on delete cascade,
     geschwindigkeit real not null,
@@ -24,7 +21,7 @@ create table logs_1sec (
 );
 
 -- 10-Sekunden-Durchschnitte für langsam ändernde Werte
-create table logs_10sec (
+create table if not exists logs_10sec (
     id serial primary key,
     auto_id int references auto(id) on delete cascade,
     coolant_temp real not null,
@@ -36,7 +33,7 @@ create table logs_10sec (
     timestamp timestamp default current_timestamp
 );
 
-create table owners (
+create table if not exists owners (
     id serial primary key,
     name varchar(100) not null,
     email varchar(100) unique not null,
