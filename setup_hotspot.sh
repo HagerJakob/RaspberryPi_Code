@@ -26,7 +26,7 @@ fi
 
 echo "📦 Installiere benötigte Pakete..."
 apt-get update
-apt-get install -y hostapd dnsmasq netfilter-persistent iptables-persistent
+apt-get install -y hostapd dnsmasq netfilter-persistent iptables-persistent dhcpcd5
 
 echo "⚙️  Konfiguriere hostapd..."
 
@@ -72,14 +72,18 @@ EOF
 
 echo "⚙️  Konfiguriere Netzwerk..."
 
-# Konfiguriere statische IP für wlan0
-cat >> /etc/dhcpcd.conf << EOF
+# Konfiguriere statische IP für wlan0 (nur wenn dhcpcd existiert)
+if command -v dhcpcd &> /dev/null; then
+  cat >> /etc/dhcpcd.conf << EOF
 
 # Statische IP für WiFi Hotspot
 interface $INTERFACE
 static ip_address=192.168.4.1/24
 nohook wpa_supplicant
 EOF
+else
+  echo "⚠️  dhcpcd nicht gefunden, überspringe IP-Konfiguration"
+fi
 
 echo "⚙️  Aktiviere IP Forwarding..."
 
@@ -100,19 +104,25 @@ netfilter-persistent save
 echo "⚙️  Aktiviere Services beim Boot..."
 
 # Aktiviere hostapd Service beim Boot
-sudo systemctl unmask hostapd
-sudo systemctl enable hostapd
+systemctl unmask hostapd 2>/dev/null || true
+systemctl enable hostapd 2>/dev/null || true
 
 # Aktiviere dnsmasq Service beim Boot
-sudo systemctl enable dnsmasq
+systemctl enable dnsmasq 2>/dev/null || true
 
-# Aktiviere dhcpcd Service beim Boot
-sudo systemctl enable dhcpcd
+# Aktiviere dhcpcd Service beim Boot (falls installiert)
+if systemctl list-unit-files 2>/dev/null | grep -q dhcpcd; then
+  systemctl enable dhcpcd 2>/dev/null || true
+fi
 
 echo "🚀 Starte Services..."
-sudo systemctl restart dhcpcd
-sudo systemctl restart dnsmasq
-sudo systemctl restart hostapd
+if systemctl list-unit-files 2>/dev/null | grep -q dhcpcd; then
+  systemctl restart dhcpcd 2>/dev/null || true
+  sleep 1
+fi
+systemctl restart dnsmasq 2>/dev/null || true
+sleep 1
+systemctl restart hostapd 2>/dev/null || true
 
 sleep 2
 echo "✅ Setup abgeschlossen!"
