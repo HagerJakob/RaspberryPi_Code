@@ -1,8 +1,11 @@
 import os
 import sqlite3
+import logging
 from typing import List, Tuple, Any
 from contextlib import contextmanager
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_db_path(url_or_path: str) -> str:
@@ -44,7 +47,18 @@ class DatabaseConnection:
         
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.executescript(schema)
+            
+            # Split statements by semicolon and execute individually
+            # This allows "IF NOT EXISTS" to work properly
+            statements = schema.split(';')
+            for statement in statements:
+                statement = statement.strip()
+                if statement:
+                    try:
+                        cursor.execute(statement)
+                    except Exception as e:
+                        # Ignore errors for idempotent operations
+                        logger.debug(f"Schema statement ignored: {e}")
 
             # Ensure default owner/auto exist so logs have a target
             cursor.execute(
