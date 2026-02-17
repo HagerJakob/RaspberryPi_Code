@@ -1,6 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+import csv
+import io
 import serial
 import asyncio
 import logging
@@ -243,6 +245,53 @@ async def download_database():
         path=db_path,
         filename="database.db",
         media_type="application/octet-stream"
+    )
+
+
+def _build_csv_text() -> str:
+    tables = ["owners", "auto", "logs_1sec", "logs_10sec"]
+    output = io.StringIO()
+
+    with db.get_connection() as conn:
+        cursor = conn.cursor()
+        for table in tables:
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                (table,),
+            )
+            if not cursor.fetchone():
+                continue
+
+            output.write(f"# table: {table}\n")
+
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [row[1] for row in cursor.fetchall()]
+            if not columns:
+                output.write("\n")
+                continue
+
+            writer = csv.writer(output)
+            writer.writerow(columns)
+
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = cursor.fetchall()
+            for row in rows:
+                writer.writerow([row[col] for col in columns])
+
+            output.write("\n")
+
+    return output.getvalue()
+
+
+@app.get("/api/database/download-text")
+async def download_database_text():
+    """Lädt die Datenbank als Text (CSV) herunter"""
+    csv_text = _build_csv_text()
+    filename = f"database_{datetime.now().strftime('%Y-%m-%d')}.txt"
+    return Response(
+        content=csv_text,
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

@@ -646,14 +646,14 @@ export default function Dashboard({ theme }: DashboardProps) {
     try {
       setIsDownloading(true);
       const apiHost = window.location.hostname || "localhost";
-      const response = await fetch(`http://${apiHost}:5000/api/database/download`);
+      const response = await fetch(`http://${apiHost}:5000/api/database/download-text`);
       if (!response.ok) throw new Error('Download fehlgeschlagen');
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `database_${new Date().toISOString().split('T')[0]}.db`;
+      link.download = `database_${new Date().toISOString().split('T')[0]}.txt`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
