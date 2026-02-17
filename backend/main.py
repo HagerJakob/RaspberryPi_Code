@@ -7,6 +7,8 @@ import random
 import platform
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
+from db import DatabaseConnection
+from data_aggregator import DataAggregator, RawDataPoint
 
 # UART Konfiguration für OBD-Daten
 # Raspberry Pi Standard UART Ports
@@ -21,6 +23,12 @@ logger = logging.getLogger(__name__)
 # Globale Variablen
 ser = None
 connected_clients = set()
+db = DatabaseConnection()
+aggregator = DataAggregator()
+
+# Konstanten
+AUTO_ID = 1  # Standardauto für dieses Projekt
+broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
 
 # UART initialisieren
 def init_uart():
@@ -50,7 +58,13 @@ obd_data = {
     "OILPRESS": "0.3"
 }
 last_broadcast_time = 0
-broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
+
+# Konvertiere OBD_KEY zu float, fallback auf 0.0
+def safe_float(value: str, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
@@ -85,6 +99,20 @@ async def uart_task():
                                 logger.info(f"Feldnamen vom Arduino: {list(obd_data.keys())}")
                                 logger.info(f"Erste Daten: {obd_data}")
                                 first_message = False
+                            
+                            # Füge Rohwert zum Aggregator hinzu
+                            raw_data = RawDataPoint(
+                                timestamp=datetime.now(),
+                                rpm=safe_float(obd_data.get("RPM")),
+                                speed=safe_float(obd_data.get("SPEED")),
+                                coolant_temp=safe_float(obd_data.get("COOLANT")),
+                                oil_temp=safe_float(obd_data.get("OIL")),
+                                fuel_level=safe_float(obd_data.get("FUEL")),
+                                voltage=safe_float(obd_data.get("VOLTAGE")),
+                                boost=safe_float(obd_data.get("BOOST")),
+                                oil_pressure=safe_float(obd_data.get("OILPRESS")),
+                            )
+                            aggregator.add_data(raw_data)
             
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
             if (current_time - last_broadcast_time) >= broadcast_interval:
@@ -108,18 +136,59 @@ async def uart_task():
             await asyncio.sleep(0.1)
 
 
+# Speichere aggregierte Daten in die Datenbank
+async def database_writer_task():
+    """Speichert Aggregations-Daten in die Datenbank"""
+    while True:
+        try:
+            # 1-Sekunden Durchschnitte speichern
+            if aggregator.should_save_1sec():
+                avg_data = aggregator.get_1sec_average()
+                if avg_data and ('rpm' in avg_data or 'speed' in avg_data):
+                    db.insert_log_1sec(
+                        auto_id=AUTO_ID,
+                        geschwindigkeit=avg_data.get('speed', 0.0),
+                        rpm=avg_data.get('rpm', 0.0),
+                    )
+                    logger.info(f"1sec-Daten gespeichert: {avg_data}")
+                    aggregator.reset_1sec_timer()
+            
+            # 10-Sekunden Durchschnitte speichern
+            if aggregator.should_save_10sec():
+                avg_data = aggregator.get_10sec_average()
+                if avg_data:
+                    db.insert_log_10sec(
+                        auto_id=AUTO_ID,
+                        coolant_temp=avg_data.get('coolant_temp', 0.0),
+                        oil_temp=avg_data.get('oil_temp', 0.0),
+                        fuel_level=avg_data.get('fuel_level', 0.0),
+                        voltage=avg_data.get('voltage', 0.0),
+                        boost=avg_data.get('boost', 0.0),
+                        oil_pressure=avg_data.get('oil_pressure', 0.0),
+                    )
+                    logger.info(f"10sec-Daten gespeichert: {avg_data}")
+                    aggregator.reset_10sec_timer()
+            
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logger.error(f"Fehler bei Datenbank-Speicherung: {e}")
+            await asyncio.sleep(1)
+
+
 # Lifespan-Context für Startup/Shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     init_uart()
     uart_bg_task = asyncio.create_task(uart_task())
-    logger.info("Backend gestartet")
+    db_bg_task = asyncio.create_task(database_writer_task())
+    logger.info("Backend gestartet - UART und Datenbankschreiber aktiviert")
     yield
     # Shutdown
     if ser:
         ser.close()
     uart_bg_task.cancel()
+    db_bg_task.cancel()
     logger.info("Backend beendet")
 
 # FastAPI App erstellen
@@ -150,6 +219,18 @@ async def health_check():
 @app.get("/api/data")
 async def get_data():
     return {"message": "Verwenden Sie WebSocket für Live-Daten"}
+
+@app.get("/api/logs/1sec")
+async def get_logs_1sec(limit: int = 60):
+    """Holt die letzten 1-Sekunden Logs"""
+    logs = db.get_latest_logs_1sec(AUTO_ID, limit)
+    return {"logs": logs}
+
+@app.get("/api/logs/10sec")
+async def get_logs_10sec(limit: int = 60):
+    """Holt die letzten 10-Sekunden Logs"""
+    logs = db.get_latest_logs_10sec(AUTO_ID, limit)
+    return {"logs": logs}
 
 
 @app.websocket("/ws")

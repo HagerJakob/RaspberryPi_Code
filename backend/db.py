@@ -74,28 +74,70 @@ class DatabaseConnection:
             cursor.execute(query, params)
             return cursor.rowcount
 
-    def insert_log_entry(
+    def insert_log_1sec(
         self,
         auto_id: int,
-        speed: int,
-        rpm: int,
-        coolant_temp: int,
-        fuel_level: int,
-        gps_latitude: float,
-        gps_longitude: float,
+        geschwindigkeit: float,
+        rpm: float,
     ) -> None:
-        """Insert a new log row."""
+        """Insert 1-second average log row."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO logs (
-                    auto_id, geschwindigkeit, rpm, coolant_temp,
-                    fuel_level, gps_latitude, gps_longitude
+                INSERT INTO logs_1sec (
+                    auto_id, geschwindigkeit, rpm
+                ) VALUES (?, ?, ?)
+                """,
+                (auto_id, geschwindigkeit, rpm),
+            )
+
+    def insert_log_10sec(
+        self,
+        auto_id: int,
+        coolant_temp: float,
+        oil_temp: float,
+        fuel_level: float,
+        voltage: float,
+        boost: float,
+        oil_pressure: float,
+    ) -> None:
+        """Insert 10-second average log row."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO logs_10sec (
+                    auto_id, coolant_temp, oil_temp, fuel_level,
+                    voltage, boost, oil_pressure
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (auto_id, speed, rpm, coolant_temp, fuel_level, gps_latitude, gps_longitude),
+                (auto_id, coolant_temp, oil_temp, fuel_level, voltage, boost, oil_pressure),
             )
+
+    def get_latest_logs_1sec(self, auto_id: int, limit: int = 60) -> List[dict]:
+        """Get the latest 1-second logs."""
+        return self.execute_query(
+            """
+            SELECT * FROM logs_1sec
+            WHERE auto_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (auto_id, limit),
+        )
+
+    def get_latest_logs_10sec(self, auto_id: int, limit: int = 60) -> List[dict]:
+        """Get the latest 10-second logs."""
+        return self.execute_query(
+            """
+            SELECT * FROM logs_10sec
+            WHERE auto_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (auto_id, limit),
+        )
 
 # Usage example
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
-drop table if exists logs;
+drop table if exists logs_1sec;
+drop table if exists logs_10sec;
 drop table if exists auto;
 drop table if exists owners;
 
@@ -13,15 +14,25 @@ create table auto (
     created_at timestamp default current_timestamp
 );
 
-create table logs (
+-- 1-Sekunden-Durchschnitte für schnelle Werte
+create table logs_1sec (
     id serial primary key,
     auto_id int references auto(id) on delete cascade,
-    geschwindigkeit int not null,
-    rpm int not null,
-    coolant_temp int not null,
-    fuel_level int not null,
-    gps_latitude float not null,
-    gps_longitude float not null,
+    geschwindigkeit real not null,
+    rpm real not null,
+    timestamp timestamp default current_timestamp
+);
+
+-- 10-Sekunden-Durchschnitte für langsam ändernde Werte
+create table logs_10sec (
+    id serial primary key,
+    auto_id int references auto(id) on delete cascade,
+    coolant_temp real not null,
+    oil_temp real not null,
+    fuel_level real not null,
+    voltage real not null,
+    boost real not null,
+    oil_pressure real not null,
     timestamp timestamp default current_timestamp
 );
 
@@ -34,4 +45,5 @@ create table owners (
 );
 
 create index idx_auto_owner on auto(owner);
-create index idx_logs_auto_id on logs(auto_id);
+create index idx_logs_1sec_auto_id on logs_1sec(auto_id);
+create index idx_logs_10sec_auto_id on logs_10sec(auto_id);
