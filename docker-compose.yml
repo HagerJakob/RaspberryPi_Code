@@ -1,17 +1,4 @@
 services:
-  sqlite:
-    image: hibitdev/sqlite:latest
-    container_name: sqlite
-    hostname: sqlite.hibit
-    ports:
-      - "8191:8191"
-    volumes:
-      - ./sqlite:/db
-      - ./backend/db:/db/schema
-    command: ["tail", "-f", "/dev/null"]  # Keeps the container running
-    networks:
-      - app-network
-
   backend:
     build:
       context: ./backend
@@ -21,14 +8,12 @@ services:
       - "5000:5000"
     volumes:
       - ./backend:/app
-      - ./sqlite:/db
+      - ./data:/data
     devices:
       - /dev/ttyAMA0:/dev/ttyAMA0
       - /dev/ttyS0:/dev/ttyS0
     environment:
-      - DATABASE_URL=sqlite:////db/app.db
-    depends_on:
-      - sqlite
+      - DATABASE_URL=sqlite:////data/app.db
     networks:
       - app-network
     command: python main.py

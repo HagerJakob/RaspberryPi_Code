@@ -1,5 +1,13 @@
 -- Erstelle Tabellen nur wenn sie nicht existieren (für Persistenz)
 
+create table if not exists owners (
+    id serial primary key,
+    name varchar(100) not null,
+    email varchar(100) unique not null,
+    phone varchar(15),
+    created_at timestamp default current_timestamp
+);
+
 create table if not exists auto (
     id serial primary key,
     owner int references owners(id) on delete cascade,
@@ -33,13 +41,10 @@ create table if not exists logs_10sec (
     timestamp timestamp default current_timestamp
 );
 
-create table if not exists owners (
-    id serial primary key,
-    name varchar(100) not null,
-    email varchar(100) unique not null,
-    phone varchar(15),
-    created_at timestamp default current_timestamp
-);
+-- Erstelle Indexes nur wenn sie nicht existieren
+create index if not exists idx_auto_owner on auto(owner);
+create index if not exists idx_logs_1sec_auto_id on logs_1sec(auto_id);
+create index if not exists idx_logs_10sec_auto_id on logs_10sec(auto_id);
 
 create index idx_auto_owner on auto(owner);
 create index idx_logs_1sec_auto_id on logs_1sec(auto_id);
