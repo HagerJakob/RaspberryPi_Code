@@ -645,7 +645,8 @@ export default function Dashboard({ theme }: DashboardProps) {
   const handleDatabaseDownload = async () => {
     try {
       setIsDownloading(true);
-      const response = await fetch('http://localhost:5000/api/database/download');
+      const apiHost = window.location.hostname || "localhost";
+      const response = await fetch(`http://${apiHost}:5000/api/database/download`);
       if (!response.ok) throw new Error('Download fehlgeschlagen');
       
       const blob = await response.blob();
