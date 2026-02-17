@@ -1,7 +1,7 @@
 [Unit]
 Description=Dashboard Auto-Start Service
-After=network-online.target docker.service hotspot-autostart.service
-Wants=network-online.target hotspot-autostart.service
+After=network-online.target docker.service
+Wants=network-online.target
 Requires=docker.service
 
 [Service]

@@ -125,19 +125,6 @@ sleep 1
 systemctl restart hostapd 2>/dev/null || true
 
 sleep 2
-echo "⚙️  Installiere Hotspot-Autostart-Service..."
-
-if [ -f "/home/pi/RaspberryPi_Code/hotspot_autostart.sh" ]; then
-  chmod +x /home/pi/RaspberryPi_Code/hotspot_autostart.sh
-fi
-
-if [ -f "/home/pi/RaspberryPi_Code/hotspot-autostart.service" ]; then
-  cp /home/pi/RaspberryPi_Code/hotspot-autostart.service /etc/systemd/system/
-  systemctl daemon-reload
-  systemctl enable hotspot-autostart.service
-  systemctl start hotspot-autostart.service || true
-fi
-
 echo "✅ Setup abgeschlossen!"
 echo ""
 echo "=========================================="
