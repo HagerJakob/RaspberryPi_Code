@@ -97,27 +97,41 @@ iptables -A FORWARD -i $INTERFACE -o eth0 -j ACCEPT
 # Speichere iptables Regeln
 netfilter-persistent save
 
+echo "⚙️  Aktiviere Services beim Boot..."
+
+# Aktiviere hostapd Service beim Boot
+sudo systemctl unmask hostapd
+sudo systemctl enable hostapd
+
+# Aktiviere dnsmasq Service beim Boot
+sudo systemctl enable dnsmasq
+
+# Aktiviere dhcpcd Service beim Boot
+sudo systemctl enable dhcpcd
+
+echo "🚀 Starte Services..."
+sudo systemctl restart dhcpcd
+sudo systemctl restart dnsmasq
+sudo systemctl restart hostapd
+
+sleep 2
 echo "✅ Setup abgeschlossen!"
 echo ""
 echo "=========================================="
 echo "Nächste Schritte:"
 echo "=========================================="
 echo ""
-echo "1. Reboot durchführen:"
-echo "   sudo reboot"
+echo "✅ Der Hotspot lädt JETZT bereits!"
 echo ""
-echo "2. Nach dem Reboot sollte der WiFi Hotspot verfügbar sein:"
-echo "   - SSID: $SSID"
+echo "Handy Verbindung testen:"
+echo "   - WiFi: Menü → WiFi Netze → '$SSID'"
 echo "   - Passwort: $PASSWORD"
 echo ""
-echo "3. Vom Handy verbinden:"
-echo "   - WiFi: Menü → WiFi Netze → '$SSID'"
-echo "   - Passwort eingeben: $PASSWORD"
+echo "Nach dem Reboot:"
+echo "   - Hotspot startet automatisch beim Boot ✓"
+echo "   - Dashboard ist unter http://192.168.4.1:5173 verfügbar"
 echo ""
-echo "4. Dashboard öffnen:"
-echo "   http://192.168.4.1:5173"
-echo ""
-echo "5. Datenbank herunterladen:"
-echo "   'DB' Button im Dashboard klicken"
+echo "Optional: Reboot für vollständigen Neustart"
+echo "   sudo reboot"
 echo ""
 echo "=========================================="

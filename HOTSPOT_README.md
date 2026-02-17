@@ -29,7 +29,7 @@ Die Datei `setup_hotspot.sh` muss auf dem Raspberry Pi sein.
 chmod +x setup_hotspot.sh
 ```
 
-### Schritt 3: Skript ausführen (mit Standard-Werten)
+### Schritt 3: Skript ausführen (mit sudo!)
 ```bash
 sudo ./setup_hotspot.sh
 ```
@@ -39,12 +39,15 @@ sudo ./setup_hotspot.sh
 sudo ./setup_hotspot.sh "MeinNetzwerk" "sicheresPasswort123"
 ```
 
-### Schritt 4: RPi neustarten
+### Schritt 4: Hotspot ist sofort verfügbar! ✅
+Direkt nach dem Setup sollte der Hotspot im WiFi-Menü sichtbar sein.
+
+**Optional: Reboot für vollständigen Neustart**
 ```bash
 sudo reboot
 ```
 
-Nach ca. 30 Sekunden sollte der Hotspot verfügbar sein.
+Nach dem Reboot startet der Hotspot **automatisch beim Boot**!
 
 ---
 
