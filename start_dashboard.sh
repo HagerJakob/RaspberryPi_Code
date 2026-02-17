@@ -50,6 +50,12 @@ fi
 
 log "Docker: OK"
 
+# Stelle sicher, dass Docker-Service aktiv ist
+if systemctl list-unit-files 2>/dev/null | grep -q "^docker.service"; then
+  sudo systemctl enable docker || true
+  sudo systemctl start docker || true
+fi
+
 # Prüfe ob Docker Compose installiert ist
 if ! command -v docker-compose &> /dev/null; then
   error "Docker Compose ist nicht installiert!"
