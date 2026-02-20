@@ -1,127 +1,177 @@
 #!/bin/bash
 
-# Dashboard Auto-Start Script für Raspberry Pi
-# Klont den Code, buildet und startet Docker Container
+# ============================================
+# RaspberryPi Dashboard Auto-Start Script
+# ============================================
+# Startet beim Boot automatisch:
+# 1. WLAN Interface
+# 2. Hotspot Services
+# 3. GitHub Repository klonen
+# 4. Docker Compose build & up
+# 5. Chromium Kiosk-Browser
+# ============================================
 
 set -e
 
-# Logging
-LOG_FILE="/var/log/dashboard-startup.log"
-REPO_URL="https://github.com/dein-user/RaspberryPi_Code.git"  # ANPASSEN!
+# Konfiguration
+REPO_URL="https://github.com/HagerJakob/RaspberryPi_Code.git"
 REPO_DIR="/home/pi/RaspberryPi_Code"
-WORK_DIR="/home/pi"
+LOG_FILE="/var/log/dashboard-startup.log"
+USER="pi"
 
-# Farben für Output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# Absolute Pfade zu Commands
+IP_CMD="/usr/sbin/ip"
+SYSTEMCTL_CMD="/usr/bin/systemctl"
+GIT_CMD="/usr/bin/git"
+DOCKER_CMD="/usr/bin/docker"
+DOCKER_COMPOSE_CMD="/usr/bin/docker-compose"
+CHROMIUM_CMD="/usr/bin/chromium-browser"
+SLEEP_CMD="/bin/sleep"
+MKDIR_CMD="/bin/mkdir"
+RM_CMD="/bin/rm"
+CD_CMD="builtin cd"
 
+# Logging-Funktion
 log() {
-  echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" | tee -a "$LOG_FILE"
+  local level="$1"
+  shift
+  local message="$*"
+  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
 }
 
-error() {
-  echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-warn() {
-  echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log "=========================================="
-log "Dashboard Auto-Start gestartet"
-log "=========================================="
-
-# Prüfe ob Git installiert ist
-if ! command -v git &> /dev/null; then
-  error "Git ist nicht installiert! Installation..."
-  sudo apt-get update
-  sudo apt-get install -y git
-fi
-
-log "Git: OK"
-
-# Prüfe ob Docker installiert ist
-if ! command -v docker &> /dev/null; then
-  error "Docker ist nicht installiert!"
+# Fehler-Handler
+error_exit() {
+  log "ERROR" "$1"
   exit 1
+}
+
+log "INFO" "=========================================="
+log "INFO" "Dashboard Auto-Start gestartet"
+log "INFO" "=========================================="
+
+# ============================================
+# 1. WLAN Interface aktivieren
+# ============================================
+log "INFO" "Aktiviere WLAN Interface wlan0..."
+if ! $IP_CMD link set wlan0 up 2>&1 | tee -a "$LOG_FILE"; then
+  log "WARN" "WLAN Interface konnte nicht aktiviert werden (möglicherweise bereits aktiv)"
 fi
+$SLEEP_CMD 2
 
-log "Docker: OK"
-
-# Prüfe ob Docker Compose installiert ist
-if ! command -v docker-compose &> /dev/null; then
-  error "Docker Compose ist nicht installiert!"
-  exit 1
+# ============================================
+# 2. Hotspot Services neu starten
+# ============================================
+log "INFO" "Starte Hotspot Services..."
+if ! $SYSTEMCTL_CMD restart hostapd 2>&1 | tee -a "$LOG_FILE"; then
+  log "WARN" "hostapd Restart fehlgeschlagen"
 fi
+$SLEEP_CMD 1
 
-log "Docker Compose: OK"
-
-# Arbeitsverzeichnis erstellen
-if [ ! -d "$WORK_DIR" ]; then
-  log "Erstelle Verzeichnis: $WORK_DIR"
-  mkdir -p "$WORK_DIR"
+if ! $SYSTEMCTL_CMD restart dnsmasq 2>&1 | tee -a "$LOG_FILE"; then
+  log "WARN" "dnsmasq Restart fehlgeschlagen"
 fi
+$SLEEP_CMD 2
 
-cd "$WORK_DIR"
+log "INFO" "Hotspot Services gestartet ✓"
 
-# Repository klonen oder pullen
+# ============================================
+# 3. GitHub Repository klonen
+# ============================================
+log "INFO" "Prüfe Repository Verzeichnis..."
 if [ -d "$REPO_DIR" ]; then
-  log "Repository existiert bereits. Pullen von Updates..."
-  cd "$REPO_DIR"
-  git pull origin main || git pull origin master
-  log "Repository aktualisiert ✓"
+  log "INFO" "Repository existiert, lösche es..."
+  if ! $RM_CMD -rf "$REPO_DIR" 2>&1 | tee -a "$LOG_FILE"; then
+    error_exit "Konnte Repository nicht löschen"
+  fi
+  $SLEEP_CMD 1
+fi
+
+log "INFO" "Klone Repository: $REPO_URL"
+if ! $GIT_CMD clone "$REPO_URL" "$REPO_DIR" 2>&1 | tee -a "$LOG_FILE"; then
+  error_exit "Repository Clone fehlgeschlagen"
+fi
+log "INFO" "Repository geklont ✓"
+$SLEEP_CMD 2
+
+# ============================================
+# 4. Docker Compose Build & Up
+# ============================================
+cd "$REPO_DIR" || error_exit "Konnte nicht in $REPO_DIR wechseln"
+log "INFO" "Wechsel zu: $(pwd)"
+
+log "INFO" "Starte Docker Compose Build..."
+if ! $DOCKER_COMPOSE_CMD build --no-cache 2>&1 | tee -a "$LOG_FILE"; then
+  error_exit "Docker Compose Build fehlgeschlagen"
+fi
+log "INFO" "Docker Compose Build erfolgreich ✓"
+$SLEEP_CMD 2
+
+log "INFO" "Starte Docker Compose (im Hintergrund)..."
+if ! $DOCKER_COMPOSE_CMD up -d 2>&1 | tee -a "$LOG_FILE"; then
+  error_exit "Docker Compose Up fehlgeschlagen"
+fi
+log "INFO" "Docker Compose gestartet ✓"
+$SLEEP_CMD 3
+
+# ============================================
+# 5. Prüfe ob Docker Services laufen
+# ============================================
+log "INFO" "Prüfe Docker Container..."
+if $DOCKER_CMD ps | grep -q "frontend"; then
+  log "INFO" "Frontend Container läuft ✓"
 else
-  log "Klone Repository: $REPO_URL"
-  git clone "$REPO_URL" "$REPO_DIR"
-  if [ -d "$REPO_DIR" ]; then
-    log "Repository geklont ✓"
-    cd "$REPO_DIR"
-  else
-    error "Clone fehlgeschlagen!"
-    exit 1
+  log "WARN" "Frontend Container läuft nicht"
+  $DOCKER_COMPOSE_CMD ps | tee -a "$LOG_FILE"
+fi
+
+# ============================================
+# 6. Warte auf Frontend Ready
+# ============================================
+log "INFO" "Warte 10 Sekunden bis Frontend bereit ist..."
+$SLEEP_CMD 10
+
+# ============================================
+# 7. Starte Chromium im Kiosk-Modus
+# ============================================
+log "INFO" "Starte Chromium im Kiosk-Modus..."
+
+# Prüfe ob Chromium installiert ist
+if [ ! -f "$CHROMIUM_CMD" ]; then
+  log "WARN" "Chromium nicht gefunden, versuche zu installieren..."
+  if ! apt-get update 2>&1 | tee -a "$LOG_FILE"; then
+    log "WARN" "apt-get update fehlgeschlagen"
+  fi
+  if ! apt-get install -y chromium-browser 2>&1 | tee -a "$LOG_FILE"; then
+    log "WARN" "Chromium Installation fehlgeschlagen"
   fi
 fi
 
-log "=========================================="
-log "Baue Docker Images..."
-log "=========================================="
-
-cd "$REPO_DIR"
-docker-compose build --no-cache
-
-if [ $? -ne 0 ]; then
-  error "Docker Build fehlgeschlagen!"
-  exit 1
+# Starte Chromium
+log "INFO" "Starte: $CHROMIUM_CMD --kiosk http://localhost:5173"
+if [ -f "$CHROMIUM_CMD" ]; then
+  export DISPLAY=:0
+  nohup "$CHROMIUM_CMD" \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-sandbox \
+    http://localhost:5173 > /dev/null 2>&1 &
+  
+  log "INFO" "Chromium gestartet (PID: $!) ✓"
+else
+  log "ERROR" "Chromium konnte nicht gestartet werden"
 fi
 
-log "Docker Build erfolgreich ✓"
+# ============================================
+# Startup abgeschlossen
+# ============================================
+log "INFO" "=========================================="
+log "INFO" "Auto-Start erfolgreich abgeschlossen! ✓"
+log "INFO" "=========================================="
+log "INFO" "Hotspot: RaspberryPi-Dashboard (192.168.4.1)"
+log "INFO" "Chromium: http://localhost:5173"
+log "INFO" "Dashboard: http://192.168.4.1:5173"
+log "INFO" "=========================================="
 
-log "=========================================="
-log "Starte Docker Container..."
-log "=========================================="
-
-docker-compose up -d
-
-if [ $? -ne 0 ]; then
-  error "Docker Compose Up fehlgeschlagen!"
-  exit 1
-fi
-
-log "Docker Container gestartet ✓"
-
-log "=========================================="
-log "Dashboard ist online!"
-log "=========================================="
-log "Frontend:  http://localhost:5173"
-log "Backend:   http://localhost:5000"
-log "WebSocket: ws://localhost:5000/ws"
-log "=========================================="
-
-# Zeige Container Status
-log ""
-log "Container Status:"
-docker-compose ps
-
-log "Startup erfolgreich abgeschlossen!"
+exit 0

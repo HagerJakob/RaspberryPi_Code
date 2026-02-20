@@ -1,18 +1,32 @@
 [Unit]
-Description=Dashboard Auto-Start Service
-After=network-online.target docker.service
-Wants=network-online.target
+Description=RaspberryPi Dashboard Auto-Start Service (WLAN + Hotspot + Docker + Kiosk)
+Documentation=https://github.com/HagerJakob/RaspberryPi_Code
+After=network.target docker.service
+Wants=network.target
 Requires=docker.service
 
 [Service]
 Type=simple
 User=pi
+Group=pi
 WorkingDirectory=/home/pi
-ExecStart=/home/pi/RaspberryPi_Code/start_dashboard.sh
-Restart=on-failure
-RestartSec=10
+ExecStart=/bin/bash -c "exec /home/pi/RaspberryPi_Code/start_dashboard.sh"
+Restart=always
+RestartSec=30
+
+# Standard Ausgabe und Fehler zu Journal
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=dashboard-startup
+
+# Environment
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="HOME=/home/pi"
+Environment="DISPLAY=:0"
+
+# Berechtigungen
+PrivateTmp=no
+NoNewPrivileges=no
 
 [Install]
 WantedBy=multi-user.target
