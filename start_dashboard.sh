@@ -25,8 +25,8 @@ IP_CMD="/usr/sbin/ip"
 SYSTEMCTL_CMD="/usr/bin/systemctl"
 GIT_CMD="/usr/bin/git"
 DOCKER_CMD="/usr/bin/docker"
-DOCKER_COMPOSE_CMD="/usr/bin/docker-compose"
-CHROMIUM_CMD="/usr/bin/chromium-browser"
+DOCKER_COMPOSE_CMD="/usr/bin/docker compose"  # Modernes Docker (Plugin)
+CHROMIUM_CMD="/usr/bin/chromium"  # Ohne -browser Suffix
 SLEEP_CMD="/bin/sleep"
 MKDIR_CMD="/bin/mkdir"
 RM_CMD="/bin/rm"
@@ -143,7 +143,7 @@ if [ ! -f "$CHROMIUM_CMD" ]; then
   if ! apt-get update 2>&1 | tee -a "$LOG_FILE"; then
     log "WARN" "apt-get update fehlgeschlagen"
   fi
-  if ! apt-get install -y chromium-browser 2>&1 | tee -a "$LOG_FILE"; then
+  if ! apt-get install -y chromium 2>&1 | tee -a "$LOG_FILE"; then
     log "WARN" "Chromium Installation fehlgeschlagen"
   fi
 fi
