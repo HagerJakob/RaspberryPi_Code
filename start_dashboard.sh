@@ -77,43 +77,28 @@ $SLEEP_CMD 2
 log "INFO" "Hotspot Services gestartet ✓"
 
 # ============================================
-# 3. GitHub Repository klonen
+# 3. Repository Verzeichnis prüfen
 # ============================================
 log "INFO" "Prüfe Repository Verzeichnis..."
-if [ -d "$REPO_DIR" ]; then
-  log "INFO" "Repository existiert, lösche es..."
-  if ! $RM_CMD -rf "$REPO_DIR" 2>&1 | tee -a "$LOG_FILE"; then
-    error_exit "Konnte Repository nicht löschen"
-  fi
-  $SLEEP_CMD 1
+if [ ! -d "$REPO_DIR" ]; then
+  log "ERROR" "Repository nicht gefunden: $REPO_DIR"
+  log "ERROR" "Bitte initial installieren mit: git clone $REPO_URL $REPO_DIR"
+  error_exit "Repository fehlt! Installation erforderlich."
 fi
 
-log "INFO" "Klone Repository: $REPO_URL"
-if ! $GIT_CMD clone "$REPO_URL" "$REPO_DIR" 2>&1 | tee -a "$LOG_FILE"; then
-  error_exit "Repository Clone fehlgeschlagen"
-fi
-log "INFO" "Repository geklont ✓"
-$SLEEP_CMD 2
-
-# ============================================
-# 4. Docker Compose Build & Up
-# ============================================
+log "INFO" "Repository gefunden: $REPO_DIR ✓"
 cd "$REPO_DIR" || error_exit "Konnte nicht in $REPO_DIR wechseln"
 log "INFO" "Wechsel zu: $(pwd)"
 
-log "INFO" "Starte Docker Compose Build..."
-if ! $DOCKER_COMPOSE_CMD build --no-cache 2>&1 | tee -a "$LOG_FILE"; then
-  error_exit "Docker Compose Build fehlgeschlagen"
-fi
-log "INFO" "Docker Compose Build erfolgreich ✓"
-$SLEEP_CMD 2
-
-log "INFO" "Starte Docker Compose (im Hintergrund)..."
-if ! $DOCKER_COMPOSE_CMD up -d 2>&1 | tee -a "$LOG_FILE"; then
+# ============================================
+# 4. Docker Compose Up (ohne Build!)
+# ============================================
+log "INFO" "Starte Docker Compose (nutze gecachte Images)..."
+if ! $DOCKER_CMD compose up -d 2>&1 | tee -a "$LOG_FILE"; then
   error_exit "Docker Compose Up fehlgeschlagen"
 fi
 log "INFO" "Docker Compose gestartet ✓"
-$SLEEP_CMD 3
+$SLEEP_CMD 5
 
 # ============================================
 # 5. Prüfe ob Docker Services laufen
@@ -123,19 +108,19 @@ if $DOCKER_CMD ps | grep -q "frontend"; then
   log "INFO" "Frontend Container läuft ✓"
 else
   log "WARN" "Frontend Container läuft nicht"
-  $DOCKER_COMPOSE_CMD ps | tee -a "$LOG_FILE"
+  $DOCKER_CMD compose ps | tee -a "$LOG_FILE"
 fi
 
 # ============================================
 # 6. Warte auf Frontend Ready
 # ============================================
-log "INFO" "Warte 10 Sekunden bis Frontend bereit ist..."
-$SLEEP_CMD 10
+log "INFO" "Warte 5 Sekunden bis Frontend bereit ist..."
+$SLEEP_CMD 5
 
 # ============================================
-# 7. Starte Chromium im Kiosk-Modus
+# 7. Starte Chromium im Fullscreen-Modus
 # ============================================
-log "INFO" "Starte Chromium im Kiosk-Modus..."
+log "INFO" "Starte Chromium im Fullscreen-Modus (F11 zum Beenden)..."
 
 # Prüfe ob Chromium installiert ist
 if [ ! -f "$CHROMIUM_CMD" ]; then
@@ -149,30 +134,31 @@ if [ ! -f "$CHROMIUM_CMD" ]; then
 fi
 
 # Starte Chromium
-log "INFO" "Starte: $CHROMIUM_CMD --kiosk http://localhost:5173"
+log "INFO" "Starte: $CHROMIUM_CMD --start-fullscreen http://localhost:5173"
 if [ -f "$CHROMIUM_CMD" ]; then
   # Starte Chromium mit korrektem Display
   # Falls pi User existiert, versuche als pi zu starten; sonst als root
   if id "$PI_USER" &>/dev/null; then
     log "INFO" "Starte Chromium als User: $PI_USER"
     nohup sudo -u "$PI_USER" bash -c "DISPLAY=:0 XAUTHORITY=$PI_HOME/.Xauthority $CHROMIUM_CMD \
-      --kiosk \
+      --start-fullscreen \
       --noerrdialogs \
-      --disable-infobars \
       --no-sandbox \
+      --disable-restore-session-state \
       http://localhost:5173" > /dev/null 2>&1 &
   else
     log "INFO" "Starte Chromium als root (User pi nicht found)"
     DISPLAY=:0 $CHROMIUM_CMD \
-      --kiosk \
+      --start-fullscreen \
       --noerrdialogs \
-      --disable-infobars \
       --no-sandbox \
+      --disable-restore-session-state \
       http://localhost:5173 > /dev/null 2>&1 &
   fi
   
   CHROMIUM_PID=$!
   log "INFO" "Chromium gestartet (PID: $CHROMIUM_PID) ✓"
+  log "INFO" "Drücke F11 zum Beenden des Fullscreen-Modus"
 else
   log "ERROR" "Chromium konnte nicht gestartet werden"
 fi
@@ -184,8 +170,9 @@ log "INFO" "=========================================="
 log "INFO" "Auto-Start erfolgreich abgeschlossen! ✓"
 log "INFO" "=========================================="
 log "INFO" "Hotspot: RaspberryPi-Dashboard (192.168.4.1)"
-log "INFO" "Chromium: http://localhost:5173"
+log "INFO" "Browser: http://localhost:5173 (Fullscreen)"
 log "INFO" "Dashboard: http://192.168.4.1:5173"
+log "INFO" "F11: Fullscreen beenden | Alt+F4: Browser schließen"
 log "INFO" "=========================================="
 log "INFO" "Service läuft weiter (Warten auf Beendigung)..."
 
