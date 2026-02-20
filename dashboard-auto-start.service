@@ -10,7 +10,7 @@ Type=simple
 User=root
 WorkingDirectory=/root
 ExecStart=/bin/bash /home/admin/RaspberryPi_Code/start_dashboard.sh
-Restart=always
+Restart=on-failure
 RestartSec=30
 
 # Standard Ausgabe und Fehler zu Journal

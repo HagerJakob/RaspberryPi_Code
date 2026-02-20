@@ -187,5 +187,7 @@ log "INFO" "Hotspot: RaspberryPi-Dashboard (192.168.4.1)"
 log "INFO" "Chromium: http://localhost:5173"
 log "INFO" "Dashboard: http://192.168.4.1:5173"
 log "INFO" "=========================================="
+log "INFO" "Service läuft weiter (Warten auf Beendigung)..."
 
-exit 0
+# Halte Service am Leben, damit systemd ihn nicht neu startet
+tail -f /dev/null
