@@ -15,10 +15,10 @@ set -e
 
 # Konfiguration
 REPO_URL="https://github.com/HagerJakob/RaspberryPi_Code.git"
-REPO_DIR="/home/pi/RaspberryPi_Code"
+REPO_DIR="/home/admin/RaspberryPi_Code"
 LOG_FILE="/var/log/dashboard-startup.log"
-PI_USER="pi"
-PI_HOME="/home/pi"
+PI_USER="admin"
+PI_HOME="/home/admin"
 
 # Absolute Pfade zu Commands
 IP_CMD="/usr/sbin/ip"

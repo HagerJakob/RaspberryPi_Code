@@ -9,7 +9,7 @@ Requires=docker.service
 Type=simple
 User=root
 WorkingDirectory=/root
-ExecStart=/bin/bash /home/pi/RaspberryPi_Code/start_dashboard.sh
+ExecStart=/bin/bash /home/admin/RaspberryPi_Code/start_dashboard.sh
 Restart=always
 RestartSec=30
 

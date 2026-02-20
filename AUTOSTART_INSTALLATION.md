@@ -30,27 +30,27 @@ sudo apt-get install -y \
 
 ### Schritt 1: Repository klonen
 ```bash
-cd /home/pi
+cd /home/admin
 git clone https://github.com/HagerJakob/RaspberryPi_Code.git
 cd RaspberryPi_Code
 ```
 
 ### Schritt 2: Start-Script ausführbar machen
 ```bash
-chmod +x /home/pi/RaspberryPi_Code/start_dashboard.sh
+chmod +x /home/admin/RaspberryPi_Code/start_dashboard.sh
 ```
 
 ### Schritt 3: Sudoers konfigurieren (optional, für Chromium Launch)
 
-Damit das Skript Chromium als `pi` User starten kann ohne Passwort zu fragen:
+Damit das Skript Chromium als `admin` User starten kann ohne Passwort zu fragen:
 
 ```bash
-sudo visudo -f /etc/sudoers.d/dashboard-pi
+sudo visudo -f /etc/sudoers.d/dashboard-admin
 ```
 
 Füge folgende Zeile hinzu:
 ```
-root ALL=(pi) NOPASSWD: /bin/bash
+root ALL=(admin) NOPASSWD: /bin/bash
 ```
 
 Speichern mit `Ctrl+X`, dann `Y`, dann `Enter`.
@@ -59,7 +59,7 @@ Speichern mit `Ctrl+X`, dann `Y`, dann `Enter`.
 
 Kopiere die Service-Datei in das systemd Verzeichnis:
 ```bash
-sudo cp /home/pi/RaspberryPi_Code/dashboard-auto-start.service /etc/systemd/system/
+sudo cp /home/admin/RaspberryPi_Code/dashboard-auto-start.service /etc/systemd/system/
 ```
 
 ### Schritt 5: Service aktivieren und testen
@@ -108,10 +108,10 @@ cat /var/log/dashboard-startup.log
 sudo journalctl -u dashboard-auto-start.service -n 50
 
 # Überprüfe ob das Skript ausführbar ist
-ls -la /home/pi/RaspberryPi_Code/start_dashboard.sh
+ls -la /home/admin/RaspberryPi_Code/start_dashboard.sh
 
 # Starte den Service manuell
-cd /home/pi/RaspberryPi_Code
+cd /home/admin/RaspberryPi_Code
 bash ./start_dashboard.sh
 ```
 
@@ -165,7 +165,7 @@ DISPLAY=:0 /usr/bin/chromium-browser --kiosk http://localhost:5173 &
 ## Datei-Struktur
 
 ```
-/home/pi/RaspberryPi_Code/
+/home/admin/RaspberryPi_Code/
 ├── start_dashboard.sh                 # Hauptstart-Skript (ausführbar)
 ├── dashboard-auto-start.service       # systemd Service (→ /etc/systemd/system/)
 ├── AUTOSTART_INSTALLATION.md          # Diese Datei
@@ -193,7 +193,7 @@ DISPLAY=:0 /usr/bin/chromium-browser --kiosk http://localhost:5173 &
    - systemd erkennt Dashboard Service
 
 3. **dashboard-auto-start.service startet** (~10-20 Sekunden)
-   - ExecStart: `/bin/bash /home/pi/RaspberryPi_Code/start_dashboard.sh`
+   - ExecStart: `/bin/bash /home/admin/RaspberryPi_Code/start_dashboard.sh`
 
 4. **Start-Skript führt aus** (~30-60 Sekunden):
    - WLAN Interface up
@@ -282,13 +282,13 @@ Falls die GitHub URL oder andere Parameter angepasst werden sollen:
 
 ### 1. start_dashboard.sh bearbeiten
 ```bash
-sudo nano /home/pi/RaspberryPi_Code/start_dashboard.sh
+sudo nano /home/admin/RaspberryPi_Code/start_dashboard.sh
 ```
 
 Key-Variablen oben:
 ```bash
 REPO_URL="https://github.com/DEIN-USER/RaspberryPi_Code.git"
-REPO_DIR="/home/pi/RaspberryPi_Code"
+REPO_DIR="/home/admin/RaspberryPi_Code"
 LOG_FILE="/var/log/dashboard-startup.log"
 ```
 
@@ -319,20 +319,25 @@ Beim nächsten Boot, wenn Git nichts zu pullen hat, können es ~40-60 Sekunden s
 
 Nach erfolgreicher Installation:
 
-1. ✅ Reboot testen:
+1. ✅ Service starten (Reboot optional):
    ```bash
-   sudo reboot
+   sudo systemctl start dashboard-auto-start.service
    ```
 
-2. ✅ Auf dem Handy WiFi "RaspberryPi-Dashboard" verbinden:
+2. ✅ Logs überprüfen (sollte erfolgreich sein):
+   ```bash
+   sudo journalctl -u dashboard-auto-start.service -f
+   ```
+
+3. ✅ Auf dem Handy WiFi "RaspberryPi-Dashboard" verbinden:
    - WiFi: `RaspberryPi-Dashboard`
    - Passwort: `raspberry123`
    - IP: `192.168.4.1`
 
-3. ✅ Dashboard aufrufen:
+4. ✅ Dashboard aufrufen:
    - `http://192.168.4.1:5173`
 
-4. ✅ Datenbank herunterladen:
+5. ✅ Datenbank herunterladen:
    - Button: "Datenbank herunterladen"
 
 ---
