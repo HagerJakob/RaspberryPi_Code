@@ -40,14 +40,29 @@ cd RaspberryPi_Code
 chmod +x /home/pi/RaspberryPi_Code/start_dashboard.sh
 ```
 
-### Schritt 3: Systemd Service installieren
+### Schritt 3: Sudoers konfigurieren (optional, für Chromium Launch)
+
+Damit das Skript Chromium als `pi` User starten kann ohne Passwort zu fragen:
+
+```bash
+sudo visudo -f /etc/sudoers.d/dashboard-pi
+```
+
+Füge folgende Zeile hinzu:
+```
+root ALL=(pi) NOPASSWD: /bin/bash
+```
+
+Speichern mit `Ctrl+X`, dann `Y`, dann `Enter`.
+
+### Schritt 4: Systemd Service installieren
 
 Kopiere die Service-Datei in das systemd Verzeichnis:
 ```bash
 sudo cp /home/pi/RaspberryPi_Code/dashboard-auto-start.service /etc/systemd/system/
 ```
 
-### Schritt 4: Service aktivieren und testen
+### Schritt 5: Service aktivieren und testen
 
 Systemd neu laden:
 ```bash
@@ -64,12 +79,14 @@ Service manuell starten (um zu testen):
 sudo systemctl start dashboard-auto-start.service
 ```
 
-### Schritt 5: Überprüfe den Status
+### Schritt 6: Überprüfe den Status
 
 Status des Service:
 ```bash
 sudo systemctl status dashboard-auto-start.service
 ```
+
+### Schritt 7: Logs prüfen
 
 Logs ansehen (live):
 ```bash

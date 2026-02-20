@@ -7,10 +7,9 @@ Requires=docker.service
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi
-ExecStart=/bin/bash -c "exec /home/pi/RaspberryPi_Code/start_dashboard.sh"
+User=root
+WorkingDirectory=/root
+ExecStart=/bin/bash /home/pi/RaspberryPi_Code/start_dashboard.sh
 Restart=always
 RestartSec=30
 
@@ -19,14 +18,12 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=dashboard-startup
 
-# Environment
+# Environment - Crucial für GUI/Display
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-Environment="HOME=/home/pi"
+Environment="HOME=/root"
 Environment="DISPLAY=:0"
-
-# Berechtigungen
-PrivateTmp=no
-NoNewPrivileges=no
+Environment="XAUTHORITY=/home/pi/.Xauthority"
+Environment="LC_ALL=en_US.UTF-8"
 
 [Install]
 WantedBy=multi-user.target

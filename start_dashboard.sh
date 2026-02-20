@@ -17,7 +17,8 @@ set -e
 REPO_URL="https://github.com/HagerJakob/RaspberryPi_Code.git"
 REPO_DIR="/home/pi/RaspberryPi_Code"
 LOG_FILE="/var/log/dashboard-startup.log"
-USER="pi"
+PI_USER="pi"
+PI_HOME="/home/pi"
 
 # Absolute Pfade zu Commands
 IP_CMD="/usr/sbin/ip"
@@ -150,15 +151,28 @@ fi
 # Starte Chromium
 log "INFO" "Starte: $CHROMIUM_CMD --kiosk http://localhost:5173"
 if [ -f "$CHROMIUM_CMD" ]; then
-  export DISPLAY=:0
-  nohup "$CHROMIUM_CMD" \
-    --kiosk \
-    --noerrdialogs \
-    --disable-infobars \
-    --no-sandbox \
-    http://localhost:5173 > /dev/null 2>&1 &
+  # Starte Chromium mit korrektem Display
+  # Falls pi User existiert, versuche als pi zu starten; sonst als root
+  if id "$PI_USER" &>/dev/null; then
+    log "INFO" "Starte Chromium als User: $PI_USER"
+    nohup sudo -u "$PI_USER" bash -c "DISPLAY=:0 XAUTHORITY=$PI_HOME/.Xauthority $CHROMIUM_CMD \
+      --kiosk \
+      --noerrdialogs \
+      --disable-infobars \
+      --no-sandbox \
+      http://localhost:5173" > /dev/null 2>&1 &
+  else
+    log "INFO" "Starte Chromium als root (User pi nicht found)"
+    DISPLAY=:0 $CHROMIUM_CMD \
+      --kiosk \
+      --noerrdialogs \
+      --disable-infobars \
+      --no-sandbox \
+      http://localhost:5173 > /dev/null 2>&1 &
+  fi
   
-  log "INFO" "Chromium gestartet (PID: $!) ✓"
+  CHROMIUM_PID=$!
+  log "INFO" "Chromium gestartet (PID: $CHROMIUM_PID) ✓"
 else
   log "ERROR" "Chromium konnte nicht gestartet werden"
 fi
