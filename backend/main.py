@@ -9,22 +9,31 @@ import logging
 import random
 import platform
 import os
+import subprocess
+import threading
+import time
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from db import DatabaseConnection
 from data_aggregator import DataAggregator, RawDataPoint
-try:
-    import pigpio
-    PIGPIO_AVAILABLE = True
-except ImportError:
-    PIGPIO_AVAILABLE = False
-    pigpio = None
 
 # UART Konfiguration für OBD-Daten
 # Raspberry Pi Standard UART Ports
 SERIAL_PORTS = ['/dev/ttyAMA0', '/dev/ttyS0', '/dev/serial0']
 BAUDRATE = 115200
 SERIAL_PORT = None
+
+# IR Konfiguration
+IR_GPIO_PIN = 17
+IR_CODE_MAP = {
+    0xBA45FF00: "POWER",
+    0xF807FF00: "DOWN",
+    0xF609FF00: "UP",
+    0xF30CFF00: "IR_1",
+    0xE718FF00: "IR_2",
+    0xA15EFF00: "IR_3",
+}
+IR_PULSE_TOLERANCE = 0.3
 
 # Logging konfigurieren
 logging.basicConfig(level=logging.INFO)
@@ -36,41 +45,9 @@ connected_clients = set()
 db_url = os.getenv("DATABASE_URL", "database.db")
 db = DatabaseConnection(db_url)
 aggregator = DataAggregator()
-
-# IR-Receiver auf GPIO 17
-IR_GPIO = 17
-pigpio_client = None
-ir_connected = False
-
-# IR Code Mappings (Hex-Codes der Elegoo Remote)
-# WICHTIG: Diese Codes müssen durch Drücken der Tasten ermittelt werden!
-IR_CODE_MAP = {
-    # Format: hex_code: theme_name
-    # Beispiele - müssen durch echte Codes ersetzt werden:
-}
-
-ir_learning_mode = False  # Flag um IR-Codes zu lernen
-ir_received_codes = []  # Speichert empfangene Codes für Lernen
-
-def init_pigpio():
-    global pigpio_client, ir_connected
-    try:
-        if not PIGPIO_AVAILABLE:
-            logger.warning("pigpio nicht verfügbar - IR-Receiver deaktiviert")
-            return False
-        
-        pigpio_client = pigpio.pi()
-        if not pigpio_client.connected:
-            logger.error("Konnte nicht mit pigpio daemon verbinden")
-            return False
-        
-        logger.info("pigpio verbunden")
-        ir_connected = True
-        return True
-    except Exception as e:
-        logger.error(f"Fehler beim Initialisieren von pigpio: {e}")
-        return False
-    button_state = {}
+ir_device = None
+ir_command_lock = threading.Lock()
+pending_ir_command = None
 
 # Konstanten
 AUTO_ID = 1  # Standardauto für dieses Projekt
@@ -93,6 +70,115 @@ def init_uart():
     ser = None
     return False
 
+
+def _is_close_to(value: float, target: float, tolerance: float = IR_PULSE_TOLERANCE) -> bool:
+    return target * (1 - tolerance) <= value <= target * (1 + tolerance)
+
+
+class NECDecoder:
+    def __init__(self, on_code):
+        self.on_code = on_code
+        self.reset()
+
+    def reset(self):
+        self.collecting = False
+        self.expecting_bit_low = False
+        self.bits = []
+        self.seen_leader_low = False
+
+    def feed_pulse(self, level: int, duration_us: float):
+        if not self.collecting:
+            if level == 0 and _is_close_to(duration_us, 9000):
+                self.seen_leader_low = True
+                return
+            if self.seen_leader_low and level == 1 and _is_close_to(duration_us, 4500):
+                self.collecting = True
+                self.expecting_bit_low = True
+                self.bits = []
+                self.seen_leader_low = False
+                return
+            self.seen_leader_low = False
+            return
+
+        if self.expecting_bit_low:
+            if level == 0 and _is_close_to(duration_us, 560):
+                self.expecting_bit_low = False
+                return
+            self.reset()
+            return
+
+        if level == 1:
+            if _is_close_to(duration_us, 560):
+                self.bits.append(0)
+            elif _is_close_to(duration_us, 1690):
+                self.bits.append(1)
+            else:
+                self.reset()
+                return
+            self.expecting_bit_low = True
+
+            if len(self.bits) == 32:
+                code = 0
+                for i, bit in enumerate(self.bits):
+                    code |= (bit << i)
+                self.on_code(code)
+                self.reset()
+            return
+
+        self.reset()
+
+
+def _handle_ir_code(code: int):
+    global pending_ir_command
+    command = IR_CODE_MAP.get(code)
+    if not command:
+        logger.debug(f"Unbekannter IR-Code: {hex(code)}")
+        return
+
+    if command == "POWER":
+        if platform.system().lower() == "linux":
+            logger.info("IR POWER empfangen: System wird heruntergefahren")
+            try:
+                subprocess.Popen(["sudo", "shutdown", "-h", "now"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as exc:
+                logger.error(f"Shutdown fehlgeschlagen: {exc}")
+        else:
+            logger.info("IR POWER empfangen: Shutdown nur unter Linux moeglich")
+
+    with ir_command_lock:
+        pending_ir_command = command
+
+
+def init_ir_receiver():
+    global ir_device
+    try:
+        from gpiozero import DigitalInputDevice
+    except Exception as exc:
+        logger.error(f"gpiozero nicht verfuegbar: {exc}")
+        return False
+
+    decoder = NECDecoder(_handle_ir_code)
+    last_edge_time = {"time": None}
+    last_level = {"value": None}
+
+    ir_device = DigitalInputDevice(IR_GPIO_PIN, pull_up=True)
+    last_level["value"] = 0 if ir_device.value == 0 else 1
+    last_edge_time["time"] = time.monotonic()
+
+    def on_edge():
+        now = time.monotonic()
+        prev_time = last_edge_time["time"]
+        if prev_time is not None:
+            duration_us = (now - prev_time) * 1_000_000
+            decoder.feed_pulse(last_level["value"], duration_us)
+        last_edge_time["time"] = now
+        last_level["value"] = 0 if ir_device.value == 0 else 1
+
+    ir_device.when_activated = on_edge
+    ir_device.when_deactivated = on_edge
+    logger.info(f"IR-Empfaenger aktiviert auf GPIO {IR_GPIO_PIN}")
+    return True
+
 obd_data = {
     "RPM": "0",
     "SPEED": "0",
@@ -101,11 +187,9 @@ obd_data = {
     "FUEL": "73",
     "VOLTAGE": "12.1",
     "BOOST": "1.1",
-    "OILPRESS": "0.3",
-    "THEME_COMMAND": ""
+    "OILPRESS": "0.3"
 }
 last_broadcast_time = 0
-current_theme_index = 0  # Track current theme for Up/Down
 
 # Konvertiere OBD_KEY zu float, fallback auf 0.0
 def safe_float(value: str, default: float = 0.0) -> float:
@@ -114,31 +198,9 @@ def safe_float(value: str, default: float = 0.0) -> float:
     except (ValueError, TypeError):
         return default
 
-# Theme Liste
-THEME_LIST = ["teal", "ember", "emerald", "sapphire", "crimson", "solar", "lime", "copper", "ice", "night", "track", "retro"]
-
-# Hintergrund-Task für IR-Receiver
-async def ir_receiver_task():
-    """Empfängt und verarbeitet IR-Signale von der Elegoo Remote"""
-    global obd_data, current_theme_index, ir_learning_mode, ir_received_codes
-    
-    if not PIGPIO_AVAILABLE or not pigpio_client:
-        logger.warning("IR-Receiver nicht verfügbar")
-        while True:
-            await asyncio.sleep(10)
-    
-    logger.info("IR-Receiver Task gestartet auf GPIO 17")
-    
-    while True:
-        try:
-            await asyncio.sleep(0.1)
-        except Exception as e:
-            logger.debug(f"IR Fehler: {e}")
-            await asyncio.sleep(0.5)
-
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
-    global obd_data, last_broadcast_time
+    global obd_data, last_broadcast_time, pending_ir_command
     buffer = ""
     first_message = True
     uart_connected = False
@@ -187,12 +249,18 @@ async def uart_task():
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
             if (current_time - last_broadcast_time) >= broadcast_interval:
                 corrected_time = datetime.now() + timedelta(hours=1)
+                ir_command = None
+                with ir_command_lock:
+                    if pending_ir_command is not None:
+                        ir_command = pending_ir_command
+                        pending_ir_command = None
                 broadcast_data = {
                     **obd_data,
                     "UART_CONNECTED": uart_connected,
-                    "IR_CONNECTED": ir_connected,
                     "TIME": corrected_time.strftime("%H:%M:%S"),
                 }
+                if ir_command:
+                    broadcast_data["IR_COMMAND"] = ir_command
                 for ws in list(connected_clients):
                     try:
                         await ws.send_json(broadcast_data)
@@ -251,19 +319,17 @@ async def database_writer_task():
 async def lifespan(app: FastAPI):
     # Startup
     init_uart()
-    init_pigpio()
+    init_ir_receiver()
     uart_bg_task = asyncio.create_task(uart_task())
-    ir_receiver_bg_task = asyncio.create_task(ir_receiver_task())
     db_bg_task = asyncio.create_task(database_writer_task())
-    logger.info("Backend gestartet - UART, IR-Receiver und Datenbankschreiber aktiviert")
+    logger.info("Backend gestartet - UART und Datenbankschreiber aktiviert")
     yield
     # Shutdown
     if ser:
         ser.close()
-    if pigpio_client:
-        pigpio_client.stop()
+    if ir_device:
+        ir_device.close()
     uart_bg_task.cancel()
-    ir_receiver_bg_task.cancel()
     db_bg_task.cancel()
     logger.info("Backend beendet")
 
@@ -365,28 +431,6 @@ async def download_database_text():
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
-
-@app.post("/api/ir/learn")
-async def start_ir_learning():
-    """Startet IR-Code Learning Modus"""
-    global ir_learning_mode, ir_received_codes
-    ir_learning_mode = True
-    ir_received_codes = []
-    logger.info("IR Learning Modus gestartet - drücke IR Remote Tasten")
-    return {"status": "learning_started", "message": "Drücke Remote Tasten, um Codes zu lernen"}
-
-@app.get("/api/ir/learned")
-async def get_learned_codes():
-    """Gibt die gelernten IR-Codes zurück"""
-    return {"codes": ir_received_codes}
-
-@app.post("/api/ir/map")
-async def set_ir_mapping(mapping: dict):
-    """Setzt das Mapping von IR-Codes zu Tasten"""
-    global IR_CODE_MAP
-    IR_CODE_MAP = mapping
-    logger.info(f"IR-Mapping aktualisiert: {mapping}")
-    return {"status": "mapping_updated", "mapping": IR_CODE_MAP}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
