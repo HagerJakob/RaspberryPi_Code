@@ -117,7 +117,7 @@ if ! $DOCKER_CMD compose up -d 2>&1 | tee -a "$LOG_FILE"; then
   error_exit "Docker Compose Up fehlgeschlagen"
 fi
 log "INFO" "Docker Compose gestartet ✓"
-$SLEEP_CMD 15
+$SLEEP_CMD 5
 
 # ============================================
 # 5. Prüfe ob Docker Services laufen
@@ -135,7 +135,7 @@ fi
 # ============================================
 log "INFO" "Warte auf Frontend Ready..."
 WAIT_TIME=0
-MAX_WAIT=180  # 180 Sekunden (3 Minuten für Boot)
+MAX_WAIT=20  # 20 Sekunden für Boot
 DOCKER_CHECKED=0
 while [ $WAIT_TIME -lt $MAX_WAIT ]; do
   # Checke Frontend
@@ -156,7 +156,7 @@ while [ $WAIT_TIME -lt $MAX_WAIT ]; do
 done
 
 if [ $WAIT_TIME -ge $MAX_WAIT ]; then
-  log "ERROR" "Frontend antwortet nicht nach 180 Sekunden!"
+  log "ERROR" "Frontend antwortet nicht nach ${MAX_WAIT} Sekunden!"
   log "ERROR" "Docker Container Status:"
   $DOCKER_CMD compose ps | tee -a "$LOG_FILE"
   error_exit "Frontend-Startup fehlgeschlagen"
