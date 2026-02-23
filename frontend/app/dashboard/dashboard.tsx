@@ -512,6 +512,11 @@ export default function Dashboard({ theme }: DashboardProps) {
         const now = Date.now();
         const data = JSON.parse(ev.data);
         
+        // Verarbeite Theme-Kommando vom Elegoo Schalter
+        if (data.THEME_COMMAND && THEME_ORDER.includes(data.THEME_COMMAND as ThemeName)) {
+          setThemeOverride(data.THEME_COMMAND as ThemeName);
+        }
+        
         // Update connection status based on UART connection
         if (data.UART_CONNECTED !== undefined) {
           setIsConnected(Boolean(data.UART_CONNECTED));

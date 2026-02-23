@@ -13,6 +13,12 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from db import DatabaseConnection
 from data_aggregator import DataAggregator, RawDataPoint
+try:
+    import pigpio
+    PIGPIO_AVAILABLE = True
+except ImportError:
+    PIGPIO_AVAILABLE = False
+    pigpio = None
 
 # UART Konfiguration für OBD-Daten
 # Raspberry Pi Standard UART Ports
@@ -30,6 +36,41 @@ connected_clients = set()
 db_url = os.getenv("DATABASE_URL", "database.db")
 db = DatabaseConnection(db_url)
 aggregator = DataAggregator()
+
+# IR-Receiver auf GPIO 17
+IR_GPIO = 17
+pigpio_client = None
+ir_connected = False
+
+# IR Code Mappings (Hex-Codes der Elegoo Remote)
+# WICHTIG: Diese Codes müssen durch Drücken der Tasten ermittelt werden!
+IR_CODE_MAP = {
+    # Format: hex_code: theme_name
+    # Beispiele - müssen durch echte Codes ersetzt werden:
+}
+
+ir_learning_mode = False  # Flag um IR-Codes zu lernen
+ir_received_codes = []  # Speichert empfangene Codes für Lernen
+
+def init_pigpio():
+    global pigpio_client, ir_connected
+    try:
+        if not PIGPIO_AVAILABLE:
+            logger.warning("pigpio nicht verfügbar - IR-Receiver deaktiviert")
+            return False
+        
+        pigpio_client = pigpio.pi()
+        if not pigpio_client.connected:
+            logger.error("Konnte nicht mit pigpio daemon verbinden")
+            return False
+        
+        logger.info("pigpio verbunden")
+        ir_connected = True
+        return True
+    except Exception as e:
+        logger.error(f"Fehler beim Initialisieren von pigpio: {e}")
+        return False
+    button_state = {}
 
 # Konstanten
 AUTO_ID = 1  # Standardauto für dieses Projekt
@@ -60,9 +101,12 @@ obd_data = {
     "FUEL": "73",
     "VOLTAGE": "12.1",
     "BOOST": "1.1",
-    "OILPRESS": "0.3"
+    "OILPRESS": "0.3",
+    "IR_MOTION": "0",
+    "THEME_COMMAND": ""
 }
 last_broadcast_time = 0
+current_theme_index = 0  # Track current theme for Up/Down
 
 # Konvertiere OBD_KEY zu float, fallback auf 0.0
 def safe_float(value: str, default: float = 0.0) -> float:
@@ -70,6 +114,43 @@ def safe_float(value: str, default: float = 0.0) -> float:
         return float(value)
     except (ValueError, TypeError):
         return default
+
+# Theme Liste
+THEME_LIST = ["teal", "ember", "emerald", "sapphire", "crimson", "solar", "lime", "copper", "ice", "night", "track", "retro"]
+
+# Hintergrund-Task für IR-Receiver
+async def ir_receiver_task():
+    """Empfängt und verarbeitet IR-Signale von der Elegoo Remote"""
+    global obd_data, current_theme_index, ir_learning_mode, ir_received_codes
+    
+    if not PIGPIO_AVAILABLE or not pigpio_client:
+        logger.warning("IR-Receiver nicht verfügbar")
+        while True:
+            await asyncio.sleep(10)
+    
+    logger.info("IR-Receiver Task gestartet auf GPIO 17")
+    
+    while True:
+        try:
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logger.debug(f"IR Fehler: {e}")
+            await asyncio.sleep(0.5)
+
+# Hintergrund-Task für IR-Sensor
+async def ir_sensor_task():
+    """Liest den IR-Sensor (Bewegungsmelder) auf GPIO 17"""
+    global obd_data
+    while True:
+        try:
+            if ir_sensor:
+                # ir_sensor.motion_detected ist True wenn Bewegung erkannt wird
+                motion_detected = ir_sensor.motion_detected
+                obd_data["IR_MOTION"] = "1" if motion_detected else "0"
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logger.error(f"Fehler beim IR-Sensor auslesen: {e}")
+            await asyncio.sleep(0.5)
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
@@ -125,6 +206,7 @@ async def uart_task():
                 broadcast_data = {
                     **obd_data,
                     "UART_CONNECTED": uart_connected,
+                    "IR_CONNECTED": ir_connected,
                     "TIME": corrected_time.strftime("%H:%M:%S"),
                 }
                 for ws in list(connected_clients):
@@ -185,14 +267,21 @@ async def database_writer_task():
 async def lifespan(app: FastAPI):
     # Startup
     init_uart()
+    init_pigpio()
     uart_bg_task = asyncio.create_task(uart_task())
+    ir_sensor_bg_task = asyncio.create_task(ir_sensor_task())
+    ir_receiver_bg_task = asyncio.create_task(ir_receiver_task())
     db_bg_task = asyncio.create_task(database_writer_task())
-    logger.info("Backend gestartet - UART und Datenbankschreiber aktiviert")
+    logger.info("Backend gestartet - UART, IR-Sensor, IR-Receiver und Datenbankschreiber aktiviert")
     yield
     # Shutdown
     if ser:
         ser.close()
+    if pigpio_client:
+        pigpio_client.stop()
     uart_bg_task.cancel()
+    ir_sensor_bg_task.cancel()
+    ir_receiver_bg_task.cancel()
     db_bg_task.cancel()
     logger.info("Backend beendet")
 
@@ -294,6 +383,28 @@ async def download_database_text():
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+
+@app.post("/api/ir/learn")
+async def start_ir_learning():
+    """Startet IR-Code Learning Modus"""
+    global ir_learning_mode, ir_received_codes
+    ir_learning_mode = True
+    ir_received_codes = []
+    logger.info("IR Learning Modus gestartet - drücke IR Remote Tasten")
+    return {"status": "learning_started", "message": "Drücke Remote Tasten, um Codes zu lernen"}
+
+@app.get("/api/ir/learned")
+async def get_learned_codes():
+    """Gibt die gelernten IR-Codes zurück"""
+    return {"codes": ir_received_codes}
+
+@app.post("/api/ir/map")
+async def set_ir_mapping(mapping: dict):
+    """Setzt das Mapping von IR-Codes zu Tasten"""
+    global IR_CODE_MAP
+    IR_CODE_MAP = mapping
+    logger.info(f"IR-Mapping aktualisiert: {mapping}")
+    return {"status": "mapping_updated", "mapping": IR_CODE_MAP}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
