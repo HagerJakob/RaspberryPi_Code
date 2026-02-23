@@ -116,20 +116,33 @@ fi
 # ============================================
 log "INFO" "Warte auf Frontend Ready..."
 WAIT_TIME=0
-MAX_WAIT=30
+MAX_WAIT=60  # 60 Sekunden (bei Reboot langsamer)
 while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+  # Checke Frontend
   if curl -s http://localhost:5173 > /dev/null 2>&1; then
     log "INFO" "Frontend antwortet! ✓"
+    # Kurz warten bis auch Backend ready ist
+    $SLEEP_CMD 2
     break
   fi
-  log "INFO" "Warte auf Frontend... ($WAIT_TIME/$MAX_WAIT)"
+  
+  # Alle 5 Sekunden Log ausgabe
+  if [ $((WAIT_TIME % 5)) -eq 0 ]; then
+    log "INFO" "Warte auf Frontend... ($WAIT_TIME/$MAX_WAIT sec)"
+  fi
+  
   $SLEEP_CMD 1
   WAIT_TIME=$((WAIT_TIME + 1))
 done
 
 if [ $WAIT_TIME -ge $MAX_WAIT ]; then
-  log "WARN" "Frontend antwortet nicht nach 30 Sekunden (läuft trotzdem weiter)"
+  log "ERROR" "Frontend antwortet nicht nach 60 Sekunden!"
+  log "ERROR" "Docker Container Status:"
+  $DOCKER_CMD compose ps | tee -a "$LOG_FILE"
+  error_exit "Frontend-Startup fehlgeschlagen"
 fi
+
+log "INFO" "Frontend bereit, starte Chromium"
 
 # ============================================
 # 7. Starte Chromium im Fullscreen-Modus
