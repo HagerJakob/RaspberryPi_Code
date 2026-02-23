@@ -117,7 +117,7 @@ if ! $DOCKER_CMD compose up -d 2>&1 | tee -a "$LOG_FILE"; then
   error_exit "Docker Compose Up fehlgeschlagen"
 fi
 log "INFO" "Docker Compose gestartet ✓"
-$SLEEP_CMD 10
+$SLEEP_CMD 15
 
 # ============================================
 # 5. Prüfe ob Docker Services laufen
