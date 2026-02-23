@@ -157,7 +157,6 @@ if [ -f "$CHROMIUM_CMD" ]; then
     nohup sudo -u "$PI_USER" bash -c "DISPLAY=:0 XAUTHORITY=$PI_HOME/.Xauthority $CHROMIUM_CMD \
       --start-fullscreen \
       --noerrdialogs \
-      --no-sandbox \
       --disable-restore-session-state \
       http://localhost:5173" > /dev/null 2>&1 &
   else
@@ -165,7 +164,6 @@ if [ -f "$CHROMIUM_CMD" ]; then
     DISPLAY=:0 $CHROMIUM_CMD \
       --start-fullscreen \
       --noerrdialogs \
-      --no-sandbox \
       --disable-restore-session-state \
       http://localhost:5173 > /dev/null 2>&1 &
   fi
