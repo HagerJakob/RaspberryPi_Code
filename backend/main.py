@@ -102,7 +102,6 @@ obd_data = {
     "VOLTAGE": "12.1",
     "BOOST": "1.1",
     "OILPRESS": "0.3",
-    "IR_MOTION": "0",
     "THEME_COMMAND": ""
 }
 last_broadcast_time = 0
@@ -135,21 +134,6 @@ async def ir_receiver_task():
             await asyncio.sleep(0.1)
         except Exception as e:
             logger.debug(f"IR Fehler: {e}")
-            await asyncio.sleep(0.5)
-
-# Hintergrund-Task für IR-Sensor
-async def ir_sensor_task():
-    """Liest den IR-Sensor (Bewegungsmelder) auf GPIO 17"""
-    global obd_data
-    while True:
-        try:
-            if ir_sensor:
-                # ir_sensor.motion_detected ist True wenn Bewegung erkannt wird
-                motion_detected = ir_sensor.motion_detected
-                obd_data["IR_MOTION"] = "1" if motion_detected else "0"
-            await asyncio.sleep(0.1)
-        except Exception as e:
-            logger.error(f"Fehler beim IR-Sensor auslesen: {e}")
             await asyncio.sleep(0.5)
 
 # Hintergrund-Task für UART-Datenverarbeitung
@@ -269,10 +253,9 @@ async def lifespan(app: FastAPI):
     init_uart()
     init_pigpio()
     uart_bg_task = asyncio.create_task(uart_task())
-    ir_sensor_bg_task = asyncio.create_task(ir_sensor_task())
     ir_receiver_bg_task = asyncio.create_task(ir_receiver_task())
     db_bg_task = asyncio.create_task(database_writer_task())
-    logger.info("Backend gestartet - UART, IR-Sensor, IR-Receiver und Datenbankschreiber aktiviert")
+    logger.info("Backend gestartet - UART, IR-Receiver und Datenbankschreiber aktiviert")
     yield
     # Shutdown
     if ser:
@@ -280,7 +263,6 @@ async def lifespan(app: FastAPI):
     if pigpio_client:
         pigpio_client.stop()
     uart_bg_task.cancel()
-    ir_sensor_bg_task.cancel()
     ir_receiver_bg_task.cancel()
     db_bg_task.cancel()
     logger.info("Backend beendet")
