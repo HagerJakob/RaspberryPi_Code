@@ -158,6 +158,8 @@ if [ -f "$CHROMIUM_CMD" ]; then
       --start-fullscreen \
       --noerrdialogs \
       --disable-restore-session-state \
+      --disable-session-crashed-bubble \
+      --incognito \
       http://localhost:5173" > /dev/null 2>&1 &
   else
     log "INFO" "Starte Chromium als root (User pi nicht found)"
@@ -165,6 +167,8 @@ if [ -f "$CHROMIUM_CMD" ]; then
       --start-fullscreen \
       --noerrdialogs \
       --disable-restore-session-state \
+      --disable-session-crashed-bubble \
+      --incognito \
       http://localhost:5173 > /dev/null 2>&1 &
   fi
   
