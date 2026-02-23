@@ -241,6 +241,7 @@ export default function Dashboard({ theme }: DashboardProps) {
     boost: false,
     oilpress: false,
   });
+  const [isDownloading, setIsDownloading] = useState(false);
   const themeFromQuery = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("theme") : null;
   const themeName = resolveTheme(theme ?? themeFromQuery);
   const effectiveTheme = themeOverride ?? themeName;
@@ -510,13 +511,6 @@ export default function Dashboard({ theme }: DashboardProps) {
       try {
         const now = Date.now();
         const data = JSON.parse(ev.data);
-
-        if (data.IR_COMMAND === "UP") {
-          handleThemeCycle();
-        }
-        if (data.IR_COMMAND === "DOWN") {
-          handleBackgroundToggle();
-        }
         
         // Verarbeite Theme-Kommando vom Elegoo Schalter
         if (data.THEME_COMMAND && THEME_ORDER.includes(data.THEME_COMMAND as ThemeName)) {
@@ -651,6 +645,19 @@ export default function Dashboard({ theme }: DashboardProps) {
       const currentIndex = BACKGROUND_ORDER.indexOf(prev);
       return BACKGROUND_ORDER[(currentIndex + 1) % BACKGROUND_ORDER.length];
     });
+  };
+
+  const handleDatabaseDownload = async () => {
+    try {
+      setIsDownloading(true);
+      const apiHost = window.location.hostname || "localhost";
+      window.location.href = `http://${apiHost}:5000/api/database/download-text`;
+    } catch (error) {
+      console.error('Fehler beim Herunterladen der Datenbank:', error);
+      alert('Fehler beim Herunterladen der Datenbank');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const isCleanBackground = backgroundMode.includes("clean");
@@ -1055,6 +1062,32 @@ export default function Dashboard({ theme }: DashboardProps) {
           box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.2);
         }
 
+        .db-download-btn {
+          padding: 6px 14px;
+          background: rgba(var(--accent-rgb), 0.1);
+          border: 1px solid rgba(var(--accent-rgb), 0.3);
+          border-radius: 8px;
+          color: var(--text-bright);
+          font-weight: 500;
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .db-download-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          border-color: rgba(var(--accent-rgb), 0.6);
+          box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.2);
+        }
+
+        .db-download-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
         .shift-arrow-left {
           position: absolute;
           top: 80px;
@@ -1154,6 +1187,15 @@ export default function Dashboard({ theme }: DashboardProps) {
           <button type="button" className="mode-switch" onClick={handleBackgroundToggle}>
             Bg
             <span className="theme-chip">{backgroundMode}</span>
+          </button>
+          <button 
+            type="button" 
+            className="db-download-btn"
+            onClick={handleDatabaseDownload}
+            disabled={isDownloading}
+            title="Datenbank herunterladen"
+          >
+            {isDownloading ? '⏳' : '💾'} DB
           </button>
         </div>
 

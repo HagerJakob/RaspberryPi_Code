@@ -9,9 +9,6 @@ import logging
 import random
 import platform
 import os
-import subprocess
-import threading
-import time
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from db import DatabaseConnection
@@ -23,18 +20,6 @@ SERIAL_PORTS = ['/dev/ttyAMA0', '/dev/ttyS0', '/dev/serial0']
 BAUDRATE = 115200
 SERIAL_PORT = None
 
-# IR Konfiguration
-IR_GPIO_PIN = 17
-IR_CODE_MAP = {
-    0xBA45FF00: "POWER",
-    0xF807FF00: "DOWN",
-    0xF609FF00: "UP",
-    0xF30CFF00: "IR_1",
-    0xE718FF00: "IR_2",
-    0xA15EFF00: "IR_3",
-}
-IR_PULSE_TOLERANCE = 0.3
-
 # Logging konfigurieren
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,9 +30,6 @@ connected_clients = set()
 db_url = os.getenv("DATABASE_URL", "database.db")
 db = DatabaseConnection(db_url)
 aggregator = DataAggregator()
-ir_device = None
-ir_command_lock = threading.Lock()
-pending_ir_command = None
 
 # Konstanten
 AUTO_ID = 1  # Standardauto für dieses Projekt
@@ -70,115 +52,6 @@ def init_uart():
     ser = None
     return False
 
-
-def _is_close_to(value: float, target: float, tolerance: float = IR_PULSE_TOLERANCE) -> bool:
-    return target * (1 - tolerance) <= value <= target * (1 + tolerance)
-
-
-class NECDecoder:
-    def __init__(self, on_code):
-        self.on_code = on_code
-        self.reset()
-
-    def reset(self):
-        self.collecting = False
-        self.expecting_bit_low = False
-        self.bits = []
-        self.seen_leader_low = False
-
-    def feed_pulse(self, level: int, duration_us: float):
-        if not self.collecting:
-            if level == 0 and _is_close_to(duration_us, 9000):
-                self.seen_leader_low = True
-                return
-            if self.seen_leader_low and level == 1 and _is_close_to(duration_us, 4500):
-                self.collecting = True
-                self.expecting_bit_low = True
-                self.bits = []
-                self.seen_leader_low = False
-                return
-            self.seen_leader_low = False
-            return
-
-        if self.expecting_bit_low:
-            if level == 0 and _is_close_to(duration_us, 560):
-                self.expecting_bit_low = False
-                return
-            self.reset()
-            return
-
-        if level == 1:
-            if _is_close_to(duration_us, 560):
-                self.bits.append(0)
-            elif _is_close_to(duration_us, 1690):
-                self.bits.append(1)
-            else:
-                self.reset()
-                return
-            self.expecting_bit_low = True
-
-            if len(self.bits) == 32:
-                code = 0
-                for i, bit in enumerate(self.bits):
-                    code |= (bit << i)
-                self.on_code(code)
-                self.reset()
-            return
-
-        self.reset()
-
-
-def _handle_ir_code(code: int):
-    global pending_ir_command
-    command = IR_CODE_MAP.get(code)
-    if not command:
-        logger.debug(f"Unbekannter IR-Code: {hex(code)}")
-        return
-
-    if command == "POWER":
-        if platform.system().lower() == "linux":
-            logger.info("IR POWER empfangen: System wird heruntergefahren")
-            try:
-                subprocess.Popen(["sudo", "shutdown", "-h", "now"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception as exc:
-                logger.error(f"Shutdown fehlgeschlagen: {exc}")
-        else:
-            logger.info("IR POWER empfangen: Shutdown nur unter Linux moeglich")
-
-    with ir_command_lock:
-        pending_ir_command = command
-
-
-def init_ir_receiver():
-    global ir_device
-    try:
-        from gpiozero import DigitalInputDevice
-    except Exception as exc:
-        logger.error(f"gpiozero nicht verfuegbar: {exc}")
-        return False
-
-    decoder = NECDecoder(_handle_ir_code)
-    last_edge_time = {"time": None}
-    last_level = {"value": None}
-
-    ir_device = DigitalInputDevice(IR_GPIO_PIN, pull_up=True)
-    last_level["value"] = 0 if ir_device.value == 0 else 1
-    last_edge_time["time"] = time.monotonic()
-
-    def on_edge():
-        now = time.monotonic()
-        prev_time = last_edge_time["time"]
-        if prev_time is not None:
-            duration_us = (now - prev_time) * 1_000_000
-            decoder.feed_pulse(last_level["value"], duration_us)
-        last_edge_time["time"] = now
-        last_level["value"] = 0 if ir_device.value == 0 else 1
-
-    ir_device.when_activated = on_edge
-    ir_device.when_deactivated = on_edge
-    logger.info(f"IR-Empfaenger aktiviert auf GPIO {IR_GPIO_PIN}")
-    return True
-
 obd_data = {
     "RPM": "0",
     "SPEED": "0",
@@ -200,7 +73,7 @@ def safe_float(value: str, default: float = 0.0) -> float:
 
 # Hintergrund-Task für UART-Datenverarbeitung
 async def uart_task():
-    global obd_data, last_broadcast_time, pending_ir_command
+    global obd_data, last_broadcast_time
     buffer = ""
     first_message = True
     uart_connected = False
@@ -249,18 +122,11 @@ async def uart_task():
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
             if (current_time - last_broadcast_time) >= broadcast_interval:
                 corrected_time = datetime.now() + timedelta(hours=1)
-                ir_command = None
-                with ir_command_lock:
-                    if pending_ir_command is not None:
-                        ir_command = pending_ir_command
-                        pending_ir_command = None
                 broadcast_data = {
                     **obd_data,
                     "UART_CONNECTED": uart_connected,
                     "TIME": corrected_time.strftime("%H:%M:%S"),
                 }
-                if ir_command:
-                    broadcast_data["IR_COMMAND"] = ir_command
                 for ws in list(connected_clients):
                     try:
                         await ws.send_json(broadcast_data)
@@ -319,7 +185,6 @@ async def database_writer_task():
 async def lifespan(app: FastAPI):
     # Startup
     init_uart()
-    init_ir_receiver()
     uart_bg_task = asyncio.create_task(uart_task())
     db_bg_task = asyncio.create_task(database_writer_task())
     logger.info("Backend gestartet - UART und Datenbankschreiber aktiviert")
@@ -327,8 +192,6 @@ async def lifespan(app: FastAPI):
     # Shutdown
     if ser:
         ser.close()
-    if ir_device:
-        ir_device.close()
     uart_bg_task.cancel()
     db_bg_task.cancel()
     logger.info("Backend beendet")
