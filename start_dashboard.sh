@@ -116,7 +116,8 @@ fi
 # ============================================
 log "INFO" "Warte auf Frontend Ready..."
 WAIT_TIME=0
-MAX_WAIT=60  # 60 Sekunden (bei Reboot langsamer)
+MAX_WAIT=120  # 120 Sekunden (bei Reboot sehr viel Zeit)
+DOCKER_CHECKED=0
 while [ $WAIT_TIME -lt $MAX_WAIT ]; do
   # Checke Frontend
   if curl -s http://localhost:5173 > /dev/null 2>&1; then

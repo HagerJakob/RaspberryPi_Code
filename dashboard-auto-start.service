@@ -1,8 +1,8 @@
 [Unit]
 Description=RaspberryPi Dashboard Auto-Start Service (WLAN + Hotspot + Docker + Kiosk)
 Documentation=https://github.com/HagerJakob/RaspberryPi_Code
-After=network.target docker.service
-Wants=network.target
+After=network-online.target docker.service
+Wants=network-online.target
 Requires=docker.service
 
 [Service]
