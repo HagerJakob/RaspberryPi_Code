@@ -112,10 +112,24 @@ else
 fi
 
 # ============================================
-# 6. Warte auf Frontend Ready
+# 6. Warte auf Frontend Ready (mit Health-Check)
 # ============================================
-log "INFO" "Warte 5 Sekunden bis Frontend bereit ist..."
-$SLEEP_CMD 5
+log "INFO" "Warte auf Frontend Ready..."
+WAIT_TIME=0
+MAX_WAIT=30
+while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+  if curl -s http://localhost:5173 > /dev/null 2>&1; then
+    log "INFO" "Frontend antwortet! ✓"
+    break
+  fi
+  log "INFO" "Warte auf Frontend... ($WAIT_TIME/$MAX_WAIT)"
+  $SLEEP_CMD 1
+  WAIT_TIME=$((WAIT_TIME + 1))
+done
+
+if [ $WAIT_TIME -ge $MAX_WAIT ]; then
+  log "WARN" "Frontend antwortet nicht nach 30 Sekunden (läuft trotzdem weiter)"
+fi
 
 # ============================================
 # 7. Starte Chromium im Fullscreen-Modus
