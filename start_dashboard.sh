@@ -91,6 +91,25 @@ cd "$REPO_DIR" || error_exit "Konnte nicht in $REPO_DIR wechseln"
 log "INFO" "Wechsel zu: $(pwd)"
 
 # ============================================
+# 3.5 Warte auf Docker Daemon
+# ============================================
+log "INFO" "Warte auf Docker Daemon..."
+DOCKER_WAIT=0
+MAX_DOCKER_WAIT=30
+while [ $DOCKER_WAIT -lt $MAX_DOCKER_WAIT ]; do
+  if $DOCKER_CMD ps > /dev/null 2>&1; then
+    log "INFO" "Docker Daemon bereit ✓"
+    break
+  fi
+  $SLEEP_CMD 1
+  DOCKER_WAIT=$((DOCKER_WAIT + 1))
+done
+
+if [ $DOCKER_WAIT -ge $MAX_DOCKER_WAIT ]; then
+  log "WARN" "Docker Daemon antwortet nicht nach 30 Sekunden, versuche trotzdem"
+fi
+
+# ============================================
 # 4. Docker Compose Up (ohne Build!)
 # ============================================
 log "INFO" "Starte Docker Compose (nutze gecachte Images)..."
@@ -98,7 +117,7 @@ if ! $DOCKER_CMD compose up -d 2>&1 | tee -a "$LOG_FILE"; then
   error_exit "Docker Compose Up fehlgeschlagen"
 fi
 log "INFO" "Docker Compose gestartet ✓"
-$SLEEP_CMD 5
+$SLEEP_CMD 15
 
 # ============================================
 # 5. Prüfe ob Docker Services laufen
@@ -116,7 +135,7 @@ fi
 # ============================================
 log "INFO" "Warte auf Frontend Ready..."
 WAIT_TIME=0
-MAX_WAIT=120  # 120 Sekunden (bei Reboot sehr viel Zeit)
+MAX_WAIT=180  # 180 Sekunden (3 Minuten für Boot)
 DOCKER_CHECKED=0
 while [ $WAIT_TIME -lt $MAX_WAIT ]; do
   # Checke Frontend
@@ -137,7 +156,7 @@ while [ $WAIT_TIME -lt $MAX_WAIT ]; do
 done
 
 if [ $WAIT_TIME -ge $MAX_WAIT ]; then
-  log "ERROR" "Frontend antwortet nicht nach 60 Sekunden!"
+  log "ERROR" "Frontend antwortet nicht nach 180 Sekunden!"
   log "ERROR" "Docker Container Status:"
   $DOCKER_CMD compose ps | tee -a "$LOG_FILE"
   error_exit "Frontend-Startup fehlgeschlagen"
