@@ -6,12 +6,12 @@
 # Startet beim Boot automatisch:
 # 1. WLAN Interface
 # 2. Hotspot Services
-# 3. GitHub Repository klonen
-# 4. Docker Compose build & up
-# 5. Chromium Kiosk-Browser
+# 3. Docker Compose up
+# 4. Chromium Kiosk-Browser
 # ============================================
 
-set -e
+# set -e nur bei kritischen Fehlern
+trap 'log "ERROR" "Skript abgebrochen: $?" ; exit 1' ERR
 
 # Konfiguration
 REPO_URL="https://github.com/HagerJakob/RaspberryPi_Code.git"
