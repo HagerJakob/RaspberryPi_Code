@@ -77,6 +77,8 @@ async def uart_task():
     buffer = ""
     first_message = True
     uart_connected = False
+    last_data_time = 0
+    UART_TIMEOUT = 2.0  # Sekunden ohne Daten bevor "not connected"
     
     while True:
         try:
@@ -95,6 +97,9 @@ async def uart_task():
                             k = parts[0].strip().upper()
                             v = parts[1].strip()
                             obd_data[k] = v
+                            
+                            # Aktualisiere last_data_time bei jedem empfangenen Wert
+                            last_data_time = current_time
                             
                             if not uart_connected:
                                 uart_connected = True
@@ -118,6 +123,11 @@ async def uart_task():
                                 oil_pressure=safe_float(obd_data.get("OILPRESS")),
                             )
                             aggregator.add_data(raw_data)
+            
+            # Prüfe ob Timeout überschritten (keine Daten seit UART_TIMEOUT)
+            if uart_connected and (current_time - last_data_time) > UART_TIMEOUT:
+                uart_connected = False
+                logger.warning(f"UART-Timeout: Keine Daten seit {UART_TIMEOUT} Sekunden - OBD not connected")
             
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
             if (current_time - last_broadcast_time) >= broadcast_interval:

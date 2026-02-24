@@ -135,7 +135,7 @@ fi
 # ============================================
 log "INFO" "Warte auf Frontend Ready..."
 WAIT_TIME=0
-MAX_WAIT=20  # 20 Sekunden für Boot
+MAX_WAIT=60  # 20 Sekunden für Boot
 DOCKER_CHECKED=0
 while [ $WAIT_TIME -lt $MAX_WAIT ]; do
   # Checke Frontend
