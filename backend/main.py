@@ -79,24 +79,30 @@ async def uart_task():
     uart_connected = False
     last_data_time = 0
     UART_TIMEOUT = 2.0  # Sekunden ohne Daten bevor "not connected"
+    data_received_count = 0
     
     while True:
         try:
             current_time = asyncio.get_event_loop().time()
             
             if ser and ser.in_waiting:
-                buffer += ser.read(ser.in_waiting).decode(errors='ignore')
+                raw_data = ser.read(ser.in_waiting)
+                buffer += raw_data.decode(errors='ignore')
+                logger.debug(f"[UART DEBUG] Rohbytes empfangen: {raw_data}, Buffer-Länge: {len(buffer)}, Buffer: {repr(buffer)}")
+                
                 # Parse Daten im Format "rpm:speed:temp/" oder "NO_DATA"
                 while '/' in buffer:
                     line, buffer = buffer.split('/', 1)
                     line = line.strip()
+                    logger.debug(f"[UART DEBUG] Geparste Zeile: '{line}'")
                     
                     if not line:  # Leere Zeile überspringen
+                        logger.debug("[UART DEBUG] Leere Zeile überspringen")
                         continue
                     
                     # Prüfe auf NO_DATA
                     if line == "NO_DATA":
-                        logger.debug("NO_DATA vom ESP empfangen - keine gültigen OBD-Daten")
+                        logger.info("NO_DATA vom ESP empfangen - keine gültigen OBD-Daten")
                         uart_connected = False
                         continue
                     
@@ -105,6 +111,7 @@ async def uart_task():
                         try:
                             parts = line.split(':')
                             rpm_str, speed_str, temp_str = parts[0].strip(), parts[1].strip(), parts[2].strip()
+                            logger.debug(f"[UART DEBUG] Teile: RPM='{rpm_str}', SPEED='{speed_str}', TEMP='{temp_str}'")
                             
                             # Konvertiere zu float
                             rpm = safe_float(rpm_str)
@@ -117,14 +124,18 @@ async def uart_task():
                             obd_data["COOLANT"] = f"{temp:.1f}" if temp >= -40 else "0"
                             
                             last_data_time = current_time
+                            data_received_count += 1
                             
                             if not uart_connected:
                                 uart_connected = True
                                 logger.info("UART-Datenempfang gestartet - OBD verbunden")
                             
                             if first_message:
-                                logger.info(f"Erste Daten vom ESP: RPM={rpm}, SPEED={speed}, COOLANT={temp}")
+                                logger.info(f"✓ Erste Daten vom ESP empfangen: RPM={rpm:.0f}, SPEED={speed:.0f}, COOLANT={temp:.1f}°C")
                                 first_message = False
+                            
+                            if data_received_count % 20 == 0:  # Alle 20 Datenpunkte loggen (ca. alle 10 Sekunden bei 500ms Intervall)
+                                logger.info(f"[UART OK] Daten empfangen #{data_received_count}: RPM={rpm:.0f}, SPEED={speed:.0f}, COOLANT={temp:.1f}°C")
                             
                             # Füge Rohwert zum Aggregator hinzu
                             raw_data = RawDataPoint(
@@ -140,7 +151,9 @@ async def uart_task():
                             )
                             aggregator.add_data(raw_data)
                         except (ValueError, IndexError) as e:
-                            logger.warning(f"Fehler beim Parsen der OBD-Daten '{line}': {e}")
+                            logger.warning(f"[UART ERROR] Fehler beim Parsen der OBD-Daten '{line}': {e}")
+                    else:
+                        logger.warning(f"[UART ERROR] Zeile passt nicht zum erwarteten Format (braucht 2x ':'): '{line}'")
             
             # Prüfe ob Timeout überschritten (keine Daten seit UART_TIMEOUT)
             if uart_connected and (current_time - last_data_time) > UART_TIMEOUT:
