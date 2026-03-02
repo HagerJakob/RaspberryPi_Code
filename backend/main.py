@@ -86,36 +86,52 @@ async def uart_task():
             
             if ser and ser.in_waiting:
                 buffer += ser.read(ser.in_waiting).decode(errors='ignore')
-                while '\n' in buffer:
-                    line, buffer = buffer.split('\n', 1)
+                # Parse Daten im Format "rpm:speed:temp/" oder "NO_DATA"
+                while '/' in buffer:
+                    line, buffer = buffer.split('/', 1)
                     line = line.strip()
                     
-                    # Parse einzelne Zeile: "RPM:5000" oder "SPEED:120"
-                    if ':' in line:
-                        parts = line.split(':', 1)
-                        if len(parts) == 2:
-                            k = parts[0].strip().upper()
-                            v = parts[1].strip()
-                            obd_data[k] = v
+                    if not line:  # Leere Zeile überspringen
+                        continue
+                    
+                    # Prüfe auf NO_DATA
+                    if line == "NO_DATA":
+                        logger.debug("NO_DATA vom ESP empfangen - keine gültigen OBD-Daten")
+                        uart_connected = False
+                        continue
+                    
+                    # Parse Format: "rpm:speed:temp"
+                    if ':' in line and line.count(':') == 2:
+                        try:
+                            parts = line.split(':')
+                            rpm_str, speed_str, temp_str = parts[0].strip(), parts[1].strip(), parts[2].strip()
                             
-                            # Aktualisiere last_data_time bei jedem empfangenen Wert
+                            # Konvertiere zu float
+                            rpm = safe_float(rpm_str)
+                            speed = safe_float(speed_str)
+                            temp = safe_float(temp_str)
+                            
+                            # Aktualisiere OBD-Daten
+                            obd_data["RPM"] = str(int(rpm)) if rpm >= 0 else "0"
+                            obd_data["SPEED"] = str(int(speed)) if speed >= 0 else "0"
+                            obd_data["COOLANT"] = f"{temp:.1f}" if temp >= -40 else "0"
+                            
                             last_data_time = current_time
                             
                             if not uart_connected:
                                 uart_connected = True
                                 logger.info("UART-Datenempfang gestartet - OBD verbunden")
                             
-                            if first_message and len(obd_data) >= 3:
-                                logger.info(f"Feldnamen vom Arduino: {list(obd_data.keys())}")
-                                logger.info(f"Erste Daten: {obd_data}")
+                            if first_message:
+                                logger.info(f"Erste Daten vom ESP: RPM={rpm}, SPEED={speed}, COOLANT={temp}")
                                 first_message = False
                             
                             # Füge Rohwert zum Aggregator hinzu
                             raw_data = RawDataPoint(
                                 timestamp=datetime.now(),
-                                rpm=safe_float(obd_data.get("RPM")),
-                                speed=safe_float(obd_data.get("SPEED")),
-                                coolant_temp=safe_float(obd_data.get("COOLANT")),
+                                rpm=rpm,
+                                speed=speed,
+                                coolant_temp=temp,
                                 oil_temp=safe_float(obd_data.get("OIL")),
                                 fuel_level=safe_float(obd_data.get("FUEL")),
                                 voltage=safe_float(obd_data.get("VOLTAGE")),
@@ -123,6 +139,8 @@ async def uart_task():
                                 oil_pressure=safe_float(obd_data.get("OILPRESS")),
                             )
                             aggregator.add_data(raw_data)
+                        except (ValueError, IndexError) as e:
+                            logger.warning(f"Fehler beim Parsen der OBD-Daten '{line}': {e}")
             
             # Prüfe ob Timeout überschritten (keine Daten seit UART_TIMEOUT)
             if uart_connected and (current_time - last_data_time) > UART_TIMEOUT:
