@@ -107,47 +107,50 @@ async def uart_task():
     UART_TIMEOUT = 2.0  # Sekunden ohne Daten bevor "not connected"
     data_received_count = 0
     debug_count = 0  # Zähler für periodisches Debug-Output
-    port_scan_count = 0  # Zähler für Port-Scanning
+    last_health_check = 0  # Zeit des letzten Health Checks
+    last_port_scan = 0  # Zeit des letzten Port Scans
     
     while True:
         try:
             current_time = asyncio.get_event_loop().time()
             debug_count += 1
-            port_scan_count += 1
             
-            # Zeige periodisch Debug-Info
-            if debug_count % 100 == 0:  # Ca. alle 100ms
+            # Zeige periodisch Debug-Info (alle ~1 Sekunde)
+            if current_time - last_health_check >= 1.0:
+                last_health_check = current_time
                 in_waiting = ser.in_waiting if ser else -1
                 logger.info(f"[UART HEALTH] ser={ser is not None}, in_waiting={in_waiting}, buffer_len={len(buffer)}, connected={uart_connected}")
             
-            # Scanne alle Ports auf der Suche nach Daten (alle 10 Sekunden)
-            if port_scan_count % 1000 == 0:
+            # Scanne alle Ports auf der Suche nach Daten (alle 3 Sekunden)
+            if current_time - last_port_scan >= 3.0:
+                last_port_scan = current_time
                 import glob
                 logger.info("[PORT SCAN] Scanne alle verfügbaren Ports auf Daten...")
                 all_ports = glob.glob("/dev/tty*") + glob.glob("/dev/serial*")
-                for test_port in all_ports[:15]:  # Limit auf erste 15
+                for test_port in all_ports[:20]:  # Limit auf erste 20
                     try:
                         test_ser = serial.Serial(test_port, BAUDRATE, timeout=0.01, rtscts=False, dsrdtr=False)
                         test_waiting = test_ser.in_waiting
                         if test_waiting > 0:
-                            test_data = test_ser.read(min(50, test_waiting))
-                            logger.info(f"  ✓ {test_port}: {test_waiting} bytes: {repr(test_data)}")
-                        else:
-                            logger.debug(f"  - {test_port}: 0 bytes")
+                            test_data = test_ser.read(min(100, test_waiting))
+                            logger.warning(f"  ✓✓✓ DATEN GEFUNDEN auf {test_port}: {test_waiting} bytes: {repr(test_data)}")
                         test_ser.close()
                     except Exception as e:
-                        logger.debug(f"  ✗ {test_port}: {e}")
+                        pass  # Ignoriere Fehler beim Scan
             
             if ser and ser.in_waiting:
                 raw_data = ser.read(ser.in_waiting)
                 buffer += raw_data.decode(errors='ignore')
-                logger.debug(f"[UART DEBUG] Rohbytes empfangen: {raw_data}, Buffer-Länge: {len(buffer)}, Buffer: {repr(buffer)}")
+                
+                # Hex-String für Debugging
+                hex_str = ' '.join(f'{b:02x}' for b in raw_data)
+                logger.warning(f"[UART RAW] {len(raw_data)} bytes: HEX=[{hex_str}] TEXT={repr(raw_data.decode(errors='ignore'))} BUFFER_LEN={len(buffer)}")
                 
                 # Parse Daten im Format "rpm:speed:temp/" oder "NO_DATA"
                 while '/' in buffer:
                     line, buffer = buffer.split('/', 1)
                     line = line.strip()
-                    logger.debug(f"[UART DEBUG] Geparste Zeile: '{line}'")
+                    logger.info(f"[UART PARSE] '/{line}/' -> Wert: '{line}'")
                     
                     if not line:  # Leere Zeile überspringen
                         logger.debug("[UART DEBUG] Leere Zeile überspringen")
