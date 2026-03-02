@@ -21,7 +21,7 @@ BAUDRATE = 115200
 SERIAL_PORT = None
 
 # Logging konfigurieren
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Globale Variablen
@@ -80,10 +80,17 @@ async def uart_task():
     last_data_time = 0
     UART_TIMEOUT = 2.0  # Sekunden ohne Daten bevor "not connected"
     data_received_count = 0
+    debug_count = 0  # Zähler für periodisches Debug-Output
     
     while True:
         try:
             current_time = asyncio.get_event_loop().time()
+            debug_count += 1
+            
+            # Zeige periodisch Debug-Info
+            if debug_count % 100 == 0:  # Ca. alle 100ms
+                in_waiting = ser.in_waiting if ser else -1
+                logger.info(f"[UART HEALTH] ser={ser is not None}, in_waiting={in_waiting}, buffer_len={len(buffer)}, connected={uart_connected}")
             
             if ser and ser.in_waiting:
                 raw_data = ser.read(ser.in_waiting)
