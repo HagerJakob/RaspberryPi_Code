@@ -38,17 +38,43 @@ broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
 # UART initialisieren
 def init_uart():
     global ser, SERIAL_PORT
+    import glob
+    
+    # Finde alle verfügbaren seriellen Ports
+    logger.info("=" * 60)
+    logger.info("UART-Initialisierung gestartet")
+    logger.info(f"Konfigurierte Ports: {SERIAL_PORTS}")
+    
+    # Versuche konfigurierte Ports
     for port in SERIAL_PORTS:
         try:
-            ser = serial.Serial(port, BAUDRATE, timeout=0.05)
+            ser = serial.Serial(port, BAUDRATE, timeout=0.05, rtscts=False, dsrdtr=False)
+            logger.info(f"✓ UART verbunden: {SERIAL_PORT} @ {BAUDRATE} baud")
+            logger.info(f"  Port-Info: {ser}")
+            
+            # Test: Lese kurz ab, um zu sehen ob Daten kommen
+            import time
+            time.sleep(0.1)
+            if ser.in_waiting > 0:
+                test_data = ser.read(min(100, ser.in_waiting))
+                logger.info(f"  ✓ Testlesen erfolgreich: {len(test_data)} Bytes empfangen: {repr(test_data[:50])}")
+            else:
+                logger.warning(f"  ⚠ Noch keine Daten auf {port} (normal beim Start)")
+            
             SERIAL_PORT = port
-            logger.info(f"UART verbunden: {SERIAL_PORT}")
+            logger.info("=" * 60)
             return True
         except Exception as e:
-            logger.debug(f"Port {port} nicht verfügbar: {e}")
+            logger.warning(f"✗ Port {port} nicht verfügbar: {e}")
             continue
     
-    logger.error(f"Keine UART-Schnittstelle verfügbar. Versuchte Ports: {SERIAL_PORTS}")
+    logger.error("Keine UART-Schnittstelle verfügbar. Verfügbare Ports auf diesem System:")
+    # Versuche alle möglichen Ports zu finden
+    possible_ports = glob.glob("/dev/tty*") + glob.glob("/dev/serial*")
+    for p in possible_ports[:10]:
+        logger.error(f"  - {p}")
+    
+    logger.info("=" * 60)
     ser = None
     return False
 
@@ -81,16 +107,36 @@ async def uart_task():
     UART_TIMEOUT = 2.0  # Sekunden ohne Daten bevor "not connected"
     data_received_count = 0
     debug_count = 0  # Zähler für periodisches Debug-Output
+    port_scan_count = 0  # Zähler für Port-Scanning
     
     while True:
         try:
             current_time = asyncio.get_event_loop().time()
             debug_count += 1
+            port_scan_count += 1
             
             # Zeige periodisch Debug-Info
             if debug_count % 100 == 0:  # Ca. alle 100ms
                 in_waiting = ser.in_waiting if ser else -1
                 logger.info(f"[UART HEALTH] ser={ser is not None}, in_waiting={in_waiting}, buffer_len={len(buffer)}, connected={uart_connected}")
+            
+            # Scanne alle Ports auf der Suche nach Daten (alle 10 Sekunden)
+            if port_scan_count % 1000 == 0:
+                import glob
+                logger.info("[PORT SCAN] Scanne alle verfügbaren Ports auf Daten...")
+                all_ports = glob.glob("/dev/tty*") + glob.glob("/dev/serial*")
+                for test_port in all_ports[:15]:  # Limit auf erste 15
+                    try:
+                        test_ser = serial.Serial(test_port, BAUDRATE, timeout=0.01, rtscts=False, dsrdtr=False)
+                        test_waiting = test_ser.in_waiting
+                        if test_waiting > 0:
+                            test_data = test_ser.read(min(50, test_waiting))
+                            logger.info(f"  ✓ {test_port}: {test_waiting} bytes: {repr(test_data)}")
+                        else:
+                            logger.debug(f"  - {test_port}: 0 bytes")
+                        test_ser.close()
+                    except Exception as e:
+                        logger.debug(f"  ✗ {test_port}: {e}")
             
             if ser and ser.in_waiting:
                 raw_data = ser.read(ser.in_waiting)
