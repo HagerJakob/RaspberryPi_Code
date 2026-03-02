@@ -49,6 +49,7 @@ def init_uart():
     for port in SERIAL_PORTS:
         try:
             ser = serial.Serial(port, BAUDRATE, timeout=0.05, rtscts=False, dsrdtr=False)
+            SERIAL_PORT = port  # Setze zuerst, bevor logging
             logger.info(f"✓ UART verbunden: {SERIAL_PORT} @ {BAUDRATE} baud")
             logger.info(f"  Port-Info: {ser}")
             
@@ -61,7 +62,6 @@ def init_uart():
             else:
                 logger.warning(f"  ⚠ Noch keine Daten auf {port} (normal beim Start)")
             
-            SERIAL_PORT = port
             logger.info("=" * 60)
             return True
         except Exception as e:
