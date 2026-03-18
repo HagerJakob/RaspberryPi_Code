@@ -112,7 +112,7 @@ Alles dauert ca. **3-5 Minuten** beim ersten Start.
 ## 📱 Zugriff auf Dashboard
 
 Nach dem Boot:
-- **Frontend:** `http://192.168.4.1:5173` (falls Hotspot lädt)
+- **Frontend:** `http://192.168.4.1:3000` (falls Hotspot lädt)
 - **Backend:** `http://192.168.4.1:5000`
 - **API:** `http://192.168.4.1:5000/api/database/download`
 

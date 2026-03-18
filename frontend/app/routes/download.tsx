@@ -7,10 +7,10 @@ export default function DownloadPage() {
     try {
       setIsDownloading(true);
       const apiHost = window.location.hostname || "localhost";
-      window.location.href = `http://${apiHost}:5000/api/database/download-text`;
+      window.location.href = `http://${apiHost}:5000/api/logfile/download-text`;
     } catch (error) {
-      console.error("Fehler beim Herunterladen der Datenbank:", error);
-      alert("Fehler beim Herunterladen der Datenbank");
+      console.error("Fehler beim Herunterladen des Logfiles:", error);
+      alert("Fehler beim Herunterladen des Logfiles");
     } finally {
       setIsDownloading(false);
     }
@@ -37,9 +37,9 @@ export default function DownloadPage() {
         textAlign: "center",
         boxShadow: "0 24px 60px rgba(0, 0, 0, 0.35)",
       }}>
-        <h1 style={{ margin: "0 0 12px", fontSize: "22px" }}>RaspberryPi Datenbank</h1>
+        <h1 style={{ margin: "0 0 12px", fontSize: "22px" }}>RaspberryPi Logfile</h1>
         <p style={{ margin: "0 0 24px", color: "#A9B7C6", lineHeight: 1.5 }}>
-          Tippe auf den Button, um die aktuelle Datenbank herunterzuladen.
+          Tippe auf den Button, um das aktuelle Logfile als TXT herunterzuladen.
         </p>
         <button
           type="button"
@@ -58,12 +58,12 @@ export default function DownloadPage() {
             transition: "background 0.2s ease",
           }}
         >
-          {isDownloading ? "Download startet..." : "Datenbank herunterladen"}
+          {isDownloading ? "Download startet..." : "Logfile herunterladen"}
         </button>
         <p style={{ margin: "16px 0 0", fontSize: "12px", color: "#7e8a96" }}>
           Falls der Download blockiert ist, benutze: <br />
           <span style={{ color: "#C4D0DC" }}>
-            http://192.168.4.1:5000/api/database/download-text
+            http://192.168.4.1:5000/api/logfile/download-text
           </span>
         </p>
       </div>

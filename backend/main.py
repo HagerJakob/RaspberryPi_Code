@@ -1,17 +1,14 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-import csv
-import io
 import serial
 import asyncio
 import logging
-import random
-import platform
 import os
+import json
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from db import DatabaseConnection
+from pathlib import Path
 from data_aggregator import DataAggregator, RawDataPoint
 
 # UART Konfiguration für OBD-Daten
@@ -27,13 +24,54 @@ logger = logging.getLogger(__name__)
 # Globale Variablen
 ser = None
 connected_clients = set()
-db_url = os.getenv("DATABASE_URL", "database.db")
-db = DatabaseConnection(db_url)
 aggregator = DataAggregator()
+log_file_path = Path(os.getenv("LOG_FILE_PATH", "/data/obd_data_log.txt"))
+log_file_lock = asyncio.Lock()
 
 # Konstanten
 AUTO_ID = 1  # Standardauto für dieses Projekt
 broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
+
+
+def ensure_log_file_exists() -> None:
+    """Erzeugt das Logfile inkl. Verzeichnis, falls noch nicht vorhanden."""
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    if not log_file_path.exists():
+        log_file_path.touch()
+
+
+async def append_log_record(record: dict) -> None:
+    """Schreibt einen Datensatz als JSON-Zeile in die Text-Logdatei."""
+    ensure_log_file_exists()
+    line = json.dumps(record, ensure_ascii=False)
+    async with log_file_lock:
+        with log_file_path.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+
+
+def read_recent_log_records(record_type: str, limit: int = 60) -> list[dict]:
+    """Liest die letzten Datensätze eines Typs aus der Text-Logdatei."""
+    if not log_file_path.exists():
+        return []
+
+    records: list[dict] = []
+    with log_file_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            if record.get("type") != record_type:
+                continue
+            records.append(record)
+
+    if limit <= 0:
+        return []
+    return records[-limit:]
 
 # UART initialisieren
 def init_uart():
@@ -238,42 +276,48 @@ async def uart_task():
             await asyncio.sleep(0.1)
 
 
-# Speichere aggregierte Daten in die Datenbank
-async def database_writer_task():
-    """Speichert Aggregations-Daten in die Datenbank"""
+# Speichere aggregierte Daten in die Logdatei
+async def logfile_writer_task():
+    """Speichert Aggregations-Daten als JSON-Zeilen in eine Text-Logdatei."""
     while True:
         try:
             # 1-Sekunden Durchschnitte speichern
             if aggregator.should_save_1sec():
                 avg_data = aggregator.get_1sec_average()
                 if avg_data and ('rpm' in avg_data or 'speed' in avg_data):
-                    db.insert_log_1sec(
-                        auto_id=AUTO_ID,
-                        geschwindigkeit=avg_data.get('speed', 0.0),
-                        rpm=avg_data.get('rpm', 0.0),
-                    )
-                    logger.info(f"1sec-Daten gespeichert: {avg_data}")
+                    record = {
+                        "timestamp": datetime.now().isoformat(timespec="seconds"),
+                        "type": "1sec",
+                        "auto_id": AUTO_ID,
+                        "rpm": round(avg_data.get('rpm', 0.0), 3),
+                        "geschwindigkeit": round(avg_data.get('speed', 0.0), 3),
+                    }
+                    await append_log_record(record)
+                    logger.info(f"1sec-Daten geloggt: {record}")
                     aggregator.reset_1sec_timer()
             
             # 10-Sekunden Durchschnitte speichern
             if aggregator.should_save_10sec():
                 avg_data = aggregator.get_10sec_average()
                 if avg_data:
-                    db.insert_log_10sec(
-                        auto_id=AUTO_ID,
-                        coolant_temp=avg_data.get('coolant_temp', 0.0),
-                        oil_temp=avg_data.get('oil_temp', 0.0),
-                        fuel_level=avg_data.get('fuel_level', 0.0),
-                        voltage=avg_data.get('voltage', 0.0),
-                        boost=avg_data.get('boost', 0.0),
-                        oil_pressure=avg_data.get('oil_pressure', 0.0),
-                    )
-                    logger.info(f"10sec-Daten gespeichert: {avg_data}")
+                    record = {
+                        "timestamp": datetime.now().isoformat(timespec="seconds"),
+                        "type": "10sec",
+                        "auto_id": AUTO_ID,
+                        "coolant_temp": round(avg_data.get('coolant_temp', 0.0), 3),
+                        "oil_temp": round(avg_data.get('oil_temp', 0.0), 3),
+                        "fuel_level": round(avg_data.get('fuel_level', 0.0), 3),
+                        "voltage": round(avg_data.get('voltage', 0.0), 3),
+                        "boost": round(avg_data.get('boost', 0.0), 3),
+                        "oil_pressure": round(avg_data.get('oil_pressure', 0.0), 3),
+                    }
+                    await append_log_record(record)
+                    logger.info(f"10sec-Daten geloggt: {record}")
                     aggregator.reset_10sec_timer()
             
             await asyncio.sleep(0.1)
         except Exception as e:
-            logger.error(f"Fehler bei Datenbank-Speicherung: {e}")
+            logger.error(f"Fehler bei Logfile-Speicherung: {e}")
             await asyncio.sleep(1)
 
 
@@ -282,15 +326,16 @@ async def database_writer_task():
 async def lifespan(app: FastAPI):
     # Startup
     init_uart()
+    ensure_log_file_exists()
     uart_bg_task = asyncio.create_task(uart_task())
-    db_bg_task = asyncio.create_task(database_writer_task())
-    logger.info("Backend gestartet - UART und Datenbankschreiber aktiviert")
+    log_bg_task = asyncio.create_task(logfile_writer_task())
+    logger.info("Backend gestartet - UART und Logfile-Schreiber aktiviert")
     yield
     # Shutdown
     if ser:
         ser.close()
     uart_bg_task.cancel()
-    db_bg_task.cancel()
+    log_bg_task.cancel()
     logger.info("Backend beendet")
 
 # FastAPI App erstellen
@@ -324,72 +369,58 @@ async def get_data():
 
 @app.get("/api/logs/1sec")
 async def get_logs_1sec(limit: int = 60):
-    """Holt die letzten 1-Sekunden Logs"""
-    logs = db.get_latest_logs_1sec(AUTO_ID, limit)
+    """Holt die letzten 1-Sekunden Logs aus der Text-Logdatei"""
+    logs = read_recent_log_records("1sec", limit)
     return {"logs": logs}
 
 @app.get("/api/logs/10sec")
 async def get_logs_10sec(limit: int = 60):
-    """Holt die letzten 10-Sekunden Logs"""
-    logs = db.get_latest_logs_10sec(AUTO_ID, limit)
+    """Holt die letzten 10-Sekunden Logs aus der Text-Logdatei"""
+    logs = read_recent_log_records("10sec", limit)
     return {"logs": logs}
 
 @app.get("/api/database/download")
 async def download_database():
-    """Lädt die Datenbank-Datei herunter"""
-    db_path = db.db_path
+    """Lädt die Text-Logdatei herunter (Legacy-Endpunktname)."""
+    ensure_log_file_exists()
+    filename = f"obd_log_{datetime.now().strftime('%Y-%m-%d')}.txt"
     return FileResponse(
-        path=db_path,
-        filename="database.db",
-        media_type="application/octet-stream"
+        path=str(log_file_path),
+        filename=filename,
+        media_type="text/plain",
     )
 
 
-def _build_csv_text() -> str:
-    tables = ["owners", "auto", "logs_1sec", "logs_10sec"]
-    output = io.StringIO()
+@app.get("/api/logfile/download")
+async def download_logfile():
+    """Lädt die Text-Logdatei herunter."""
+    return await download_database()
 
-    with db.get_connection() as conn:
-        cursor = conn.cursor()
-        for table in tables:
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                (table,),
-            )
-            if not cursor.fetchone():
-                continue
 
-            output.write(f"# table: {table}\n")
-
-            cursor.execute(f"PRAGMA table_info({table})")
-            columns = [row[1] for row in cursor.fetchall()]
-            if not columns:
-                output.write("\n")
-                continue
-
-            writer = csv.writer(output)
-            writer.writerow(columns)
-
-            cursor.execute(f"SELECT * FROM {table}")
-            rows = cursor.fetchall()
-            for row in rows:
-                writer.writerow([row[col] for col in columns])
-
-            output.write("\n")
-
-    return output.getvalue()
+def _build_log_text() -> str:
+    """Liest die komplette Logdatei als Text."""
+    if not log_file_path.exists():
+        return ""
+    return log_file_path.read_text(encoding="utf-8")
 
 
 @app.get("/api/database/download-text")
 async def download_database_text():
-    """Lädt die Datenbank als Text (CSV) herunter"""
-    csv_text = _build_csv_text()
-    filename = f"database_{datetime.now().strftime('%Y-%m-%d')}.txt"
+    """Lädt die Logdatei als TXT herunter (Legacy-Endpunktname)."""
+    ensure_log_file_exists()
+    log_text = _build_log_text()
+    filename = f"obd_log_{datetime.now().strftime('%Y-%m-%d')}.txt"
     return Response(
-        content=csv_text,
+        content=log_text,
         media_type="text/plain",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.get("/api/logfile/download-text")
+async def download_logfile_text():
+    """Lädt die Logdatei als TXT herunter."""
+    return await download_database_text()
 
 
 @app.websocket("/ws")

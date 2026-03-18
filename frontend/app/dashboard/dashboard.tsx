@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { TriangleAlert } from "lucide-react";
 
 type ThemeName = "teal" | "ember" | "emerald" | "sapphire" | "crimson" | "solar" | "lime" | "copper" | "ice" | "night" | "track" | "retro";
 type BackgroundMode = "dark-carbon" | "dark-clean";
@@ -647,14 +648,14 @@ export default function Dashboard({ theme }: DashboardProps) {
     });
   };
 
-  const handleDatabaseDownload = async () => {
+  const handleLogDownload = async () => {
     try {
       setIsDownloading(true);
       const apiHost = window.location.hostname || "localhost";
-      window.location.href = `http://${apiHost}:5000/api/database/download-text`;
+      window.location.href = `http://${apiHost}:5000/api/logfile/download-text`;
     } catch (error) {
-      console.error('Fehler beim Herunterladen der Datenbank:', error);
-      alert('Fehler beim Herunterladen der Datenbank');
+      console.error('Fehler beim Herunterladen des Logfiles:', error);
+      alert('Fehler beim Herunterladen des Logfiles');
     } finally {
       setIsDownloading(false);
     }
@@ -1191,11 +1192,11 @@ export default function Dashboard({ theme }: DashboardProps) {
           <button 
             type="button" 
             className="db-download-btn"
-            onClick={handleDatabaseDownload}
+            onClick={handleLogDownload}
             disabled={isDownloading}
-            title="Datenbank herunterladen"
+            title="Logfile herunterladen"
           >
-            {isDownloading ? '⏳' : '💾'} DB
+            {isDownloading ? '⏳' : '💾'} LOG
           </button>
         </div>
 
@@ -1212,7 +1213,7 @@ export default function Dashboard({ theme }: DashboardProps) {
           
           {/* Oil Temp Widget */}
           <div className={`metric-widget ${warnings.oil ? 'widget-warning' : ''}`}>
-            {warnings.oil && <div className="warning-icon">⚠</div>}
+            {warnings.oil && <div className="warning-icon"><TriangleAlert size={20} strokeWidth={2.5} /></div>}
             <div className="widget-label">Oil Temp</div>
             <div className="widget-content">
               <div id="oil" className="widget-value">60°C</div>
@@ -1224,7 +1225,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
           {/* Fuel Widget */}
           <div className={`metric-widget ${warnings.fuel ? 'widget-warning' : ''}`}>
-            {warnings.fuel && <div className="warning-icon">⚠</div>}
+            {warnings.fuel && <div className="warning-icon"><TriangleAlert size={20} strokeWidth={2.5} /></div>}
             <div className="widget-label">Fuel Level</div>
             <div className="widget-content">
               <div id="fuel" className="widget-value">73%</div>
@@ -1236,7 +1237,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
           {/* Coolant Widget */}
           <div className={`metric-widget ${warnings.coolant ? 'widget-warning' : ''}`}>
-            {warnings.coolant && <div className="warning-icon">⚠</div>}
+            {warnings.coolant && <div className="warning-icon"><TriangleAlert size={20} strokeWidth={2.5} /></div>}
             <div className="widget-label">Coolant Temp</div>
             <div className="widget-content">
               <div id="temp" className="widget-value">20°C</div>
@@ -1256,7 +1257,7 @@ export default function Dashboard({ theme }: DashboardProps) {
           
           {/* Battery Widget */}
           <div className={`metric-widget ${warnings.voltage ? 'widget-warning' : ''}`}>
-            {warnings.voltage && <div className="warning-icon-left">⚠</div>}
+            {warnings.voltage && <div className="warning-icon-left"><TriangleAlert size={20} strokeWidth={2.5} /></div>}
             <div className="widget-label-right">Battery</div>
             <div className="widget-content">
               <div className="widget-bar-container">
@@ -1268,7 +1269,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
           {/* Boost Widget */}
           <div className={`metric-widget ${warnings.boost ? 'widget-warning' : ''}`}>
-            {warnings.boost && <div className="warning-icon-left">⚠</div>}
+            {warnings.boost && <div className="warning-icon-left"><TriangleAlert size={20} strokeWidth={2.5} /></div>}
             <div className="widget-label-right">Boost Pressure</div>
             <div className="widget-content">
               <div className="widget-bar-container">
@@ -1280,7 +1281,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
           {/* Oil Pressure Widget */}
           <div className={`metric-widget ${warnings.oilpress ? 'widget-warning' : ''}`}>
-            {warnings.oilpress && <div className="warning-icon-left">⚠</div>}
+            {warnings.oilpress && <div className="warning-icon-left"><TriangleAlert size={20} strokeWidth={2.5} /></div>}
             <div className="widget-label-right">Oil Pressure</div>
             <div className="widget-content">
               <div className="widget-bar-container">

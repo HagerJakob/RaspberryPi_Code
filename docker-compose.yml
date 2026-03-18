@@ -13,7 +13,7 @@ services:
       - /dev/ttyAMA0:/dev/ttyAMA0
       - /dev/ttyS0:/dev/ttyS0
     environment:
-      - DATABASE_URL=sqlite:////data/app.db
+      - LOG_FILE_PATH=/data/obd_data_log.txt
     networks:
       - app-network
     command: python main.py
@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "5173:5173"
+      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -34,7 +34,7 @@ services:
       - backend
     networks:
       - app-network
-    command: bun run dev
+    command: bun run start
     restart: always
 
 networks:

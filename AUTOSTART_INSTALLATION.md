@@ -6,7 +6,7 @@ Dieses Setup startet beim Raspberry Pi Boot automatisch:
 2. ✅ WiFi Hotspot Services (hostapd, dnsmasq) neu starten
 3. ✅ GitHub Repository klonen
 4. ✅ Docker Compose aufbauen & starten
-5. ✅ Chromium im Kiosk-Modus öffnen
+5. ✅ Daemon Browser öffnen
 
 ---
 
@@ -20,7 +20,7 @@ sudo apt-get install -y \
   git \
   docker.io \
   docker-compose \
-  chromium-browser \
+   daemon-browser \
   hostapd \
   dnsmasq \
   dhcpcd5
@@ -40,9 +40,9 @@ cd RaspberryPi_Code
 chmod +x /home/admin/RaspberryPi_Code/start_dashboard.sh
 ```
 
-### Schritt 3: Sudoers konfigurieren (optional, für Chromium Launch)
+### Schritt 3: Sudoers konfigurieren (optional, für Browser Launch)
 
-Damit das Skript Chromium als `admin` User starten kann ohne Passwort zu fragen:
+Damit das Skript den Browser als `admin` User starten kann ohne Passwort zu fragen:
 
 ```bash
 sudo visudo -f /etc/sudoers.d/dashboard-admin
@@ -148,7 +148,7 @@ sudo systemctl restart hostapd dnsmasq
 sudo ip link set wlan0 up
 ```
 
-### Chromium öffnet nicht
+### Daemon Browser öffnet nicht
 ```bash
 # DISPLAY Variable überprüfen
 echo $DISPLAY
@@ -157,7 +157,7 @@ echo $DISPLAY
 cat ~/.Xinitrc  # oder .bashrc
 
 # Manuell testen
-DISPLAY=:0 /usr/bin/chromium-browser --kiosk http://localhost:5173 &
+DISPLAY=:0 /usr/bin/daemon-browser http://localhost:3000 &
 ```
 
 ---
@@ -201,12 +201,12 @@ DISPLAY=:0 /usr/bin/chromium-browser --kiosk http://localhost:5173 &
    - Repo klonen (oder aktualisieren)
    - Docker-Compose build + up
    - 10 Sekunden warten
-   - Chromium im Kiosk-Modus starten
+   - Daemon Browser starten
 
 5. **Dashboard online** (~60-90 Sekunden nach Boot)
    - Hotspot: `RaspberryPi-Dashboard` (192.168.4.1)
-   - Chromium: `http://localhost:5173` (lokal)
-   - Phone:    `http://192.168.4.1:5173` (über Hotspot)
+   - Browser: `http://localhost:3000` (lokal)
+   - Phone:   `http://192.168.4.1:3000` (über Hotspot)
 
 ---
 
@@ -230,8 +230,8 @@ Beispiel-Output:
 [2026-02-20 08:37:45] [INFO] Docker Compose Build erfolgreich ✓
 [2026-02-20 08:37:47] [INFO] Starte Docker Compose (im Hintergrund)...
 [2026-02-20 08:37:50] [INFO] Docker Compose gestartet ✓
-[2026-02-20 08:38:00] [INFO] Starte Chromium im Kiosk-Modus...
-[2026-02-20 08:38:01] [INFO] Chromium gestartet (PID: 2845) ✓
+[2026-02-20 08:38:00] [INFO] Starte Daemon Browser...
+[2026-02-20 08:38:01] [INFO] Daemon Browser gestartet (PID: 2845) ✓
 [2026-02-20 08:38:01] [INFO] Auto-Start erfolgreich abgeschlossen! ✓
 ```
 
@@ -307,7 +307,7 @@ Die Startup-Zeit hängt ab von:
 - **Git Clone**: ~20-50 Sekunden (abhängig von Internetgeschwindigkeit)
 - **Docker Build**: ~20-60 Sekunden (abhängig von Änderungen)
 - **Docker Up + Startup**: ~10-20 Sekunden
-- **Chromium Start**: ~5-10 Sekunden
+- **Browser Start**: ~5-10 Sekunden
 
 **Total: ~60-150 Sekunden (1-2.5 Minuten) vom Boot bis Dashboard sichtbar**
 
@@ -335,7 +335,7 @@ Nach erfolgreicher Installation:
    - IP: `192.168.4.1`
 
 4. ✅ Dashboard aufrufen:
-   - `http://192.168.4.1:5173`
+   - `http://192.168.4.1:3000`
 
 5. ✅ Datenbank herunterladen:
    - Button: "Datenbank herunterladen"
