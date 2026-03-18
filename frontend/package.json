@@ -1,6 +1,7 @@
 {
   "name": "frontend",
   "private": true,
+  "packageManager": "bun@1.2.0",
   "type": "module",
   "scripts": {
     "build": "react-router build",
