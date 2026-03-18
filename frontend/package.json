@@ -1,32 +1,27 @@
 {
   "name": "frontend",
   "private": true,
+  "packageManager": "bun@1.3.11",
   "type": "module",
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "start": "bunx --bun sirv-cli dist --host 0.0.0.0 --port 3000 --single",
+    "start": "vite preview --host 0.0.0.0 --port 3000",
     "typecheck": "tsc"
   },
   "dependencies": {
     "lucide-react": "^0.577.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "source-map-js": "^1.2.1"
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.13",
-    "@types/node": "^22",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "4.3.4",
-    "debug": "^4.4.3",
-    "picomatch": "^4.0.3",
     "sirv-cli": "^3.0.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.2",
-    "vite": "6.0.11",
-    "vite-tsconfig-paths": "^6.1.1",
-    "vue": "^3.5.30"
+    "vite": "6.0.11"
   }
 }
