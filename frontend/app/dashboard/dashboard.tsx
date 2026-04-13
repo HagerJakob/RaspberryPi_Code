@@ -553,14 +553,14 @@ export default function Dashboard({ theme }: DashboardProps) {
 
         const newWarnings = { ...warnings };
 
-        if (data.COOLANT !== undefined) {
-          const val = parseInt(data.COOLANT, 10);
-          const el = els.temp;
-          const bar = els.tempBar;
-          if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
-          setBarLevel(bar, (val / 120) * 100);
-          newWarnings.coolant = val > 100;
-        }
+        const simulatedCoolant = 105;
+        const rawCoolant = data.COOLANT !== undefined ? parseInt(data.COOLANT, 10) : simulatedCoolant;
+        const coolant = Number.isFinite(rawCoolant) ? Math.max(101, rawCoolant) : simulatedCoolant;
+        const tempEl = els.temp;
+        const tempBar = els.tempBar;
+        if (tempEl) tempEl.innerHTML = `${coolant}<span class="unit">°C</span>`;
+        setBarLevel(tempBar, (coolant / 120) * 100);
+        newWarnings.coolant = coolant > 100;
         if (data.OIL !== undefined) {
           const val = parseInt(data.OIL, 10);
           const el = els.oil;
