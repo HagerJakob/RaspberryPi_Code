@@ -14,8 +14,6 @@ services:
       - /dev/ttyS0:/dev/ttyS0
     environment:
       - LOG_FILE_PATH=/data/obd_data_log.txt
-    networks:
-      - app-network
     command: python main.py
     privileged: true
     restart: always
@@ -32,11 +30,5 @@ services:
       - /app/node_modules
     depends_on:
       - backend
-    networks:
-      - app-network
     command: bun run start
     restart: always
-
-networks:
-
-volumes:

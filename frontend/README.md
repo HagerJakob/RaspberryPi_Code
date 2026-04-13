@@ -27,11 +27,3 @@ bun run start
 ```
 
 Runtime-URL: `http://localhost:3000`
-
-## Docker
-
-```bash
-docker compose up -d --build frontend
-```
-
-Das Docker-Image verwendet `oven/bun` und startet den statischen Build mit `sirv-cli` über Bun.
