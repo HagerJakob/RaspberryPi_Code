@@ -91,3 +91,72 @@ docker compose up backend
 ```
 
 Dockerfile basiert auf `python:3.11-slim` und exposed Port 5000.
+
+## Go/Wails Migration (Bootstrap)
+
+Zusätzlich zum Python-Backend wurde ein erster Go/Wails Einstieg angelegt:
+
+- `main.go`: Wails App-Start und Binding
+- `app.go`: Lifecycle, Event-Broadcasting (`obd:data`), Log-Methoden
+- `serial.go`: UART-Reader mit Frame-Parsing (`rpm:speed:temp/`)
+- `aggregator.go`: 1s/10s Aggregation analog zur Python-Logik
+- `logging.go`: JSON-Line Logdatei kompatibel zum bestehenden Format
+- `models.go`: gemeinsame Datenmodelle und Defaults
+
+### Bereits umgesetzt
+
+- Wails-Lifecycle mit Startup/Shutdown
+- Live-Event-Streaming über Wails Runtime Events (`obd:data`) mit ~60 FPS
+- Portierter Aggregator (1s/10s Mittelwerte)
+- JSON-Line Logging kompatibel zur bisherigen Struktur
+- UART-Service auf Basis von `periph.io/x/host/v3` + `uartreg`
+- Exponierte Wails-Methoden: `GetHealth`, `GetLogs1Sec`, `GetLogs10Sec`, `GetLogfileText`
+- Exponierte Runtime-Diagnosemethoden: `GetRuntimeConfig`, `GetCurrentData`
+- Konfigurierbare Runtime-Settings via Umgebungsvariablen (`BROADCAST_INTERVAL_MS`, `UART_TIMEOUT_SECONDS`, `TIME_OFFSET_HOURS`, `LOG_FILE_PATH`, `LOG_MAX_BYTES`, `LOG_ROTATE_COUNT`)
+- Deployment-Artefakte für Raspberry Pi (`build-rpi.ps1`, `deploy/rpi-obd-dashboard.service`)
+
+### Nächste Schritte
+
+- Frontend-Build in `backend/frontend/dist` in den Wails-Build integrieren
+- Altes HTTP-API (optional) vollständig durch Wails-Bindings ersetzen
+- Raspberry-Pi-Build/Service-Setup
+
+### Lokaler Start (Go/Wails)
+
+1. Go 1.21+ und Wails CLI installieren.
+2. Im `backend` Verzeichnis:
+
+```bash
+go mod tidy
+pwsh ./sync-frontend.ps1
+wails dev
+```
+
+### Verifikation (Stand: 2026-04-13)
+
+- `go mod tidy` wurde ausgeführt
+- `go test ./...` ist erfolgreich
+- `go build ./...` ist erfolgreich
+
+Hinweis: Die vollständige `frontend/` Codebasis ist im aktuellen Worktree weiterhin gelöscht. Für echte UI-Integration muss sie wiederhergestellt und anschließend `pwsh ./sync-frontend.ps1` erneut ausgeführt werden.
+
+## Raspberry Pi Deployment
+
+### Cross-Build (Linux ARM64)
+
+```bash
+pwsh ./build-rpi.ps1
+```
+
+Erzeugt standardmäßig die Binärdatei `obd-dashboard-wails` für `linux/arm64`.
+
+### Systemd Service
+
+Beispiel-Service liegt unter `deploy/rpi-obd-dashboard.service`.
+
+Typischer Ablauf auf Raspberry Pi:
+
+1. Binary nach `/opt/rpi-obd-dashboard/` kopieren
+2. Service nach `/etc/systemd/system/rpi-obd-dashboard.service` kopieren
+3. `sudo systemctl daemon-reload`
+4. `sudo systemctl enable --now rpi-obd-dashboard`

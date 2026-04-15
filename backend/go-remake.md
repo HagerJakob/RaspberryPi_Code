@@ -49,41 +49,74 @@ This document outlines the plan to migrate the current Python-based OBD data das
 
 ## Implementation Phases
 
+### Current Progress (2026-04-13)
+- **Overall**: Migration bootstrap is in place. Core backend logic is now available in Go/Wails, while Python/FastAPI remains available as fallback.
+- [x] Go module initialized (`go.mod`) with Wails dependency.
+- [x] Wails application entry + lifecycle implemented (`main.go`, `app.go`).
+- [x] Data model compatibility for dashboard payload fields (`RPM`, `SPEED`, `COOLANT`, `OIL`, `FUEL`, `VOLTAGE`, `BOOST`, `OILPRESS`, `UART_CONNECTED`, `TIME`).
+- [x] DataAggregator port completed (1-second and 10-second windows).
+- [x] JSON-line log writer/readback port completed (compatible with existing log format).
+- [x] Runtime event broadcasting implemented (`obd:data`, 16ms interval target).
+- [x] Frontend updated to consume Wails events with automatic WebSocket fallback.
+- [x] Frontend log download updated to use Wails binding (`GetLogfileText`) with HTTP fallback.
+- [x] Serial migration updated to `periph.io` host/uart registry implementation with OBD frame parser.
+- [~] Frontend embed integration started (`sync-frontend.ps1` copies built frontend to `backend/frontend/dist`).
+- [x] Backend test coverage started (`aggregator_test.go`, `serial_test.go`, `logging_test.go`).
+- [x] Optional log rotation support added via `LOG_MAX_BYTES`.
+- [x] Runtime config loader implemented (`BROADCAST_INTERVAL_MS`, `UART_TIMEOUT_SECONDS`, `TIME_OFFSET_HOURS`, `LOG_FILE_PATH`, `LOG_MAX_BYTES`).
+- [x] Multi-generation log rotation implemented (`LOG_ROTATE_COUNT`).
+- [x] Rotated log readback implemented (APIs now include `.1..N` segments for history continuity).
+- [x] Deployment baseline added (`build-rpi.ps1`, `deploy/rpi-obd-dashboard.service`).
+- [x] Serial shutdown improved (context cancellation closes UART handle).
+- [x] Runtime diagnostic bindings added (`GetRuntimeConfig`, `GetCurrentData`).
+- [ ] Add hardware validation on Raspberry Pi (UART behavior, throughput, stability).
+- [~] Add Go unit/integration tests for aggregator, logging, serial parsing, and runtime config (core unit tests in place; device/integration tests pending).
+- [x] Local Go compile verification completed (`go test ./...` and `go build ./...` pass in `backend`).
+- [!] Current local worktree has the full `frontend/` content deleted; frontend integration validation is blocked until those files are restored.
+
 ### Phase 1: Project Setup and Structure
-1. Initialize Wails project in backend directory
-2. Set up Go module structure
-3. Configure Wails application with existing frontend
-4. Establish basic application lifecycle
+Status: **Partially completed**
+1. [x] Initialize Wails-style backend entry in backend directory
+2. [x] Set up Go module structure
+3. [~] Configure Wails application with existing frontend (placeholder embed is active, production frontend bundle wiring pending)
+4. [x] Establish basic application lifecycle
 
 ### Phase 2: Serial Communication Migration
-1. Replace Python `serial` with `periph.io` serial implementation
-2. Implement UART port detection and connection logic
-3. Handle OBD data parsing and validation
-4. Ensure compatibility with existing serial protocols
+Status: **In progress**
+1. [x] Replace Python `serial` with `periph.io` serial implementation
+2. [x] Implement UART port detection and connection logic (`uartreg` + configured candidates)
+3. [x] Handle OBD data parsing and basic validation (`rpm:speed:temp/`, `NO_DATA`)
+4. [~] Ensure compatibility with existing serial protocols on target hardware (software path complete, hardware validation pending)
 
 ### Phase 3: Data Aggregation Port
-1. Convert `DataAggregator` class to Go struct/methods
-2. Implement 1-second and 10-second aggregation windows
-3. Handle concurrent data access safely
-4. Maintain data structure compatibility with frontend
+Status: **Completed (functional)**
+1. [x] Convert `DataAggregator` class to Go struct/methods
+2. [x] Implement 1-second and 10-second aggregation windows
+3. [x] Handle concurrent data access safely (mutex-protected buffer)
+4. [x] Maintain data structure compatibility with frontend
 
 ### Phase 4: WebSocket to Wails Events
-1. Replace FastAPI WebSocket endpoints with Wails runtime events
-2. Implement real-time data broadcasting to frontend
-3. Handle client connection management
-4. Ensure 60 FPS update rate (16ms intervals)
+Status: **Mostly completed**
+1. [x] Replace FastAPI WebSocket path with Wails runtime events (`obd:data`) in migrated flow
+2. [x] Implement real-time data broadcasting to frontend
+3. [x] Handle client side by Wails event subscription (with WebSocket fallback for browser/dev mode)
+4. [~] Ensure 60 FPS update rate (16ms ticker configured; hardware/runtime verification pending)
 
 ### Phase 5: Logging and File Operations
-1. Implement JSON-based logging system
-2. Handle async file operations safely
-3. Maintain log file structure compatibility
-4. Add log rotation if needed
+Status: **Mostly completed**
+1. [x] Implement JSON-based logging system
+2. [x] Handle safe concurrent file operations (mutex serialization)
+3. [x] Maintain log file structure compatibility
+4. [x] Add basic log rotation support (`LOG_MAX_BYTES`)
+5. [x] Add configurable rotation depth (`LOG_ROTATE_COUNT`)
+6. [x] Include rotated segments in readback paths (`ReadRecentByType`, `ReadAllText`)
 
 ### Phase 6: Frontend Integration
-1. Adapt frontend to work within Wails application
-2. Update API calls to use Wails bindings
-3. Ensure WebSocket replacement works correctly
-4. Test UI responsiveness and data display
+Status: **In progress**
+1. [x] Adapt frontend dashboard live data flow for Wails runtime events
+2. [~] Update API calls to use Wails bindings (log download is migrated; remaining API calls still mixed/fallback)
+3. [x] Ensure WebSocket replacement path works via fallback mode
+4. [~] Build sync path for Wails embed added (`sync-frontend.ps1`); full runtime test on target device pending
 
 ## Migration Strategy
 
