@@ -466,26 +466,6 @@ export default function Dashboard({ theme }: DashboardProps) {
       ctx.fillText("km/h", cx, cy - 70);
     }
 
-    // WebSocket connection to backend
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    const host = window.location.hostname || "localhost";
-    const wsUrl = `${proto}://${host}:5000/ws`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-    };
-
-    ws.onclose = () => {
-      console.log("WebSocket disconnected");
-      setIsConnected(false);
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setIsConnected(false);
-    };
-
     let frameId: number | null = null;
     let needsRedraw = true;
     let lastUpdateTime = 0;
@@ -505,133 +485,96 @@ export default function Dashboard({ theme }: DashboardProps) {
       });
     };
 
-    let lastMessageTime = 0;
-    const messageThrottle = 16; // ~60 FPS
-
-    ws.onmessage = (ev) => {
-      try {
-        const now = Date.now();
-        const data = JSON.parse(ev.data);
-        
-        // Verarbeite Theme-Kommando vom Elegoo Schalter
-        if (data.THEME_COMMAND && THEME_ORDER.includes(data.THEME_COMMAND as ThemeName)) {
-          setThemeOverride(data.THEME_COMMAND as ThemeName);
-        }
-        
-        // Update connection status based on UART connection
-        if (data.UART_CONNECTED !== undefined) {
-          setIsConnected(Boolean(data.UART_CONNECTED));
-        }
-
-        // Update current time from Pi if present
-        if (data.TIME) {
-          setCurrentTime(String(data.TIME));
-        }
-        
-        // Throttle updates zu ~60 FPS
-        if (now - lastMessageTime < messageThrottle) {
-          return;
-        }
-        lastMessageTime = now;
-        
-        const oldRpm = rpm;
-        const oldSpeed = speed;
-
-        if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
-        if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
-        
-        // Shift indicator logic
-        if (rpm < 1000 && speed >= 20) {
-          setShiftIndicator("downshift");
-        } else if (rpm > 4000 && speed < 140) {
-          setShiftIndicator("upshift");
-        } else {
-          setShiftIndicator(null);
-        }
-        
-        const els = elementsRef.current;
-
-        const newWarnings = { ...warnings };
-
-        const simulatedCoolant = 105;
-        const rawCoolant = data.COOLANT !== undefined ? parseInt(data.COOLANT, 10) : simulatedCoolant;
-        const coolant = Number.isFinite(rawCoolant) ? Math.max(101, rawCoolant) : simulatedCoolant;
-        const tempEl = els.temp;
-        const tempBar = els.tempBar;
-        if (tempEl) tempEl.innerHTML = `${coolant}<span class="unit">°C</span>`;
-        setBarLevel(tempBar, (coolant / 120) * 100);
-        newWarnings.coolant = coolant > 100;
-        if (data.OIL !== undefined) {
-          const val = parseInt(data.OIL, 10);
-          const el = els.oil;
-          const bar = els.oilBar;
-          if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
-          setBarLevel(bar, (val / 120) * 100);
-          newWarnings.oil = val > 110;
-        }
-        if (data.FUEL !== undefined) {
-          const val = parseInt(data.FUEL, 10);
-          const el = els.fuel;
-          const bar = els.fuelBar;
-          if (el) el.innerHTML = `${val}<span class="unit">%</span>`;
-          setBarLevel(bar, val);
-          newWarnings.fuel = val < 20;
-        }
-        if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
-          const voltage = parseFloat(data.VOLTAGE || data.BATTERY);
-          const el = els.voltage;
-          const bar = els.voltageBar;
-          if (Number.isFinite(voltage)) {
-            if (el) el.innerHTML = `${voltage.toFixed(1)}<span class="unit">V</span>`;
-            const vMin = 11.8;
-            const vMax = 12.3;
-            const vPercent = ((voltage - vMin) / (vMax - vMin)) * 100;
-            setBarLevel(bar, vPercent);
-            newWarnings.voltage = voltage < 11.4;
-          }
-        }
-        if (data.BOOST !== undefined) {
-          const val = parseFloat(data.BOOST);
-          const el = els.boost;
-          const bar = els.boostBar;
-          if (Number.isFinite(val)) {
-            if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">bar</span>`;
-            setBarLevel(bar, (val / 2) * 100);
-            newWarnings.boost = val > 1.8;
-          }
-        }
-        if (data.OILPRESS !== undefined) {
-          const val = parseFloat(data.OILPRESS);
-          const el = els.oilpress;
-          const bar = els.oilpressBar;
-          if (Number.isFinite(val)) {
-            if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">bar</span>`;
-            // OIL PRESSURE: 0-5 bar
-            setBarLevel(bar, (val / 5) * 100);
-            newWarnings.oilpress = val < 0.5 || val > 4.5;
-          }
-        }
-        
-        setWarnings(newWarnings);
-
-        if (rpm !== oldRpm || speed !== oldSpeed) {
-          needsRedraw = true;
-          requestDraw();
-        }
-      } catch (e) {
-        console.error("Parse error:", e);
+    window.runtime.EventsOn("obd:data", (data: any) => {
+      if (data.THEME_COMMAND && THEME_ORDER.includes(data.THEME_COMMAND as ThemeName)) {
+        setThemeOverride(data.THEME_COMMAND as ThemeName);
       }
-    };
+
+      if (data.UART_CONNECTED !== undefined) {
+        setIsConnected(Boolean(data.UART_CONNECTED));
+      }
+
+      if (data.TIME) {
+        setCurrentTime(String(data.TIME));
+      }
+
+      const oldRpm = rpm;
+      const oldSpeed = speed;
+
+      if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
+      if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
+
+      if (rpm < 1000 && speed >= 20) {
+        setShiftIndicator("downshift");
+      } else if (rpm > 4000 && speed < 140) {
+        setShiftIndicator("upshift");
+      } else {
+        setShiftIndicator(null);
+      }
+
+      const els = elementsRef.current;
+      const newWarnings = { ...warnings };
+
+      const simulatedCoolant = 105;
+      const rawCoolant = data.COOLANT !== undefined ? parseInt(data.COOLANT, 10) : simulatedCoolant;
+      const coolant = Number.isFinite(rawCoolant) ? Math.max(101, rawCoolant) : simulatedCoolant;
+      if (els.temp) els.temp.textContent = `${coolant}°C`;
+      setBarLevel(els.tempBar, (coolant / 120) * 100);
+      newWarnings.coolant = coolant > 100;
+      if (data.OIL !== undefined) {
+        const val = parseInt(data.OIL, 10);
+        if (els.oil) els.oil.textContent = `${val}°C`;
+        setBarLevel(els.oilBar, (val / 120) * 100);
+        newWarnings.oil = val > 110;
+      }
+      if (data.FUEL !== undefined) {
+        const val = parseInt(data.FUEL, 10);
+        if (els.fuel) els.fuel.textContent = `${val}%`;
+        setBarLevel(els.fuelBar, val);
+        newWarnings.fuel = val < 20;
+      }
+      if (data.VOLTAGE !== undefined || data.BATTERY !== undefined) {
+        const voltage = parseFloat(data.VOLTAGE || data.BATTERY);
+        if (Number.isFinite(voltage)) {
+          if (els.voltage) els.voltage.textContent = `${voltage.toFixed(1)}V`;
+          const vMin = 11.8;
+          const vMax = 12.3;
+          setBarLevel(els.voltageBar, ((voltage - vMin) / (vMax - vMin)) * 100);
+          newWarnings.voltage = voltage < 11.4;
+        }
+      }
+      if (data.BOOST !== undefined) {
+        const val = parseFloat(data.BOOST);
+        if (Number.isFinite(val)) {
+          if (els.boost) els.boost.textContent = `${val.toFixed(1)} bar`;
+          setBarLevel(els.boostBar, (val / 2) * 100);
+          newWarnings.boost = val > 1.8;
+        }
+      }
+      if (data.OILPRESS !== undefined) {
+        const val = parseFloat(data.OILPRESS);
+        if (Number.isFinite(val)) {
+          if (els.oilpress) els.oilpress.textContent = `${val.toFixed(1)} bar`;
+          setBarLevel(els.oilpressBar, (val / 5) * 100);
+          newWarnings.oilpress = val < 0.5 || val > 4.5;
+        }
+      }
+
+      setWarnings(newWarnings);
+
+      if (rpm !== oldRpm || speed !== oldSpeed) {
+        needsRedraw = true;
+        requestDraw();
+      }
+    });
 
     // initial draw on next animation frame
     needsRedraw = true;
     requestDraw();
 
     return () => {
-      try {
-        if (frameId !== null) cancelAnimationFrame(frameId);
-        ws.close();
-      } catch {}
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      window.runtime.EventsOff("obd:data");
     };
   }, [effectiveTheme]);
 
@@ -651,8 +594,14 @@ export default function Dashboard({ theme }: DashboardProps) {
   const handleLogDownload = async () => {
     try {
       setIsDownloading(true);
-      const apiHost = window.location.hostname || "localhost";
-      window.location.href = `http://${apiHost}:5000/api/logfile/download-text`;
+      const text = await window.go.main.App.GetLogfileText();
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "obd_log.txt";
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Fehler beim Herunterladen des Logfiles:', error);
       alert('Fehler beim Herunterladen des Logfiles');

@@ -6,8 +6,14 @@ export default function DownloadPage() {
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
-      const apiHost = window.location.hostname || "localhost";
-      window.location.href = `http://${apiHost}:5000/api/logfile/download-text`;
+      const text = await window.go.main.App.GetLogfileText();
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "obd_log.txt";
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Fehler beim Herunterladen des Logfiles:", error);
       alert("Fehler beim Herunterladen des Logfiles");
@@ -60,12 +66,6 @@ export default function DownloadPage() {
         >
           {isDownloading ? "Download startet..." : "Logfile herunterladen"}
         </button>
-        <p style={{ margin: "16px 0 0", fontSize: "12px", color: "#7e8a96" }}>
-          Falls der Download blockiert ist, benutze: <br />
-          <span style={{ color: "#C4D0DC" }}>
-            http://192.168.4.1:5000/api/logfile/download-text
-          </span>
-        </p>
       </div>
     </div>
   );
