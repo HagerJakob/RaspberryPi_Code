@@ -30,7 +30,7 @@ func LoadAppConfig() AppConfig {
 		}
 	}
 
-	offsetHours := 1.0
+	offsetHours := 0.0
 	if raw := os.Getenv("TIME_OFFSET_HOURS"); raw != "" {
 		if parsed, err := strconv.ParseFloat(raw, 64); err == nil {
 			offsetHours = parsed

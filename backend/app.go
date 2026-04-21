@@ -122,7 +122,7 @@ func (a *App) snapshot() OBDData {
 	if !last.IsZero() && time.Since(last) > a.uartTimeout {
 		data.UARTConnected = false
 	}
-	data.Time = time.Now().Add(a.config.TimeOffset).Format("15:04:05")
+	data.Time = time.Now().Local().Format("15:04:05")
 	return data
 }
 

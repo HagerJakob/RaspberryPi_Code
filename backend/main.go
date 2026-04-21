@@ -16,8 +16,8 @@ func main() {
 	app := NewApp()
 	err := wails.Run(&options.App{
 		Title:  "RaspberryPi OBD Dashboard",
-		Width:  1400,
-		Height: 900,
+		Width:  1280,
+		Height: 400,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
