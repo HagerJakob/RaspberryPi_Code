@@ -3,7 +3,7 @@
 set -u
 
 LOG_FILE="/var/log/dashboard-startup.log"
-REPO_DIR="/home/admin/RaspberryPi_Code"
+REPO_DIR="/home/pi/RaspberryPi_Code"
 FRONTEND_PORT="3000"
 FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
 DOCKER_CMD="/usr/bin/docker"

@@ -26,6 +26,7 @@ sudo apt-get install -y \
 ### Schritt 1: Repository klonen
 ```bash
 cd /home/admin
+cd /home/pi
 git clone https://github.com/HagerJakob/RaspberryPi_Code.git
 cd RaspberryPi_Code
 ```
@@ -33,6 +34,7 @@ cd RaspberryPi_Code
 ### Schritt 2: Start-Script ausführbar machen
 ```bash
 chmod +x /home/admin/RaspberryPi_Code/start_dashboard.sh
+chmod +x /home/pi/RaspberryPi_Code/start_dashboard.sh
 ```
 
 ### Schritt 3: Systemd Service installieren
@@ -40,6 +42,7 @@ chmod +x /home/admin/RaspberryPi_Code/start_dashboard.sh
 Kopiere die Service-Datei in das systemd Verzeichnis:
 ```bash
 sudo cp /home/admin/RaspberryPi_Code/dashboard-auto-start.service /etc/systemd/system/
+sudo cp /home/pi/RaspberryPi_Code/dashboard-auto-start.service /etc/systemd/system/
 ```
 
 ### Schritt 4: Service aktivieren und testen
@@ -92,6 +95,7 @@ ls -la /home/admin/RaspberryPi_Code/start_dashboard.sh
 
 # Starte den Service manuell
 cd /home/admin/RaspberryPi_Code
+cd /home/pi/RaspberryPi_Code
 bash ./start_dashboard.sh
 ```
 
