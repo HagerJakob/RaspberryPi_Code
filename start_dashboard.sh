@@ -1,240 +1,85 @@
 #!/bin/bash
 
-# ============================================
-# RaspberryPi Dashboard Auto-Start Script
-# ============================================
-# Startet beim Boot automatisch:
-# 1. WLAN Interface
-# 2. Hotspot Services
-# 3. Docker Compose up
-# 4. Daemon Browser
-# ============================================
+set -u
 
-# set -e nur bei kritischen Fehlern
-trap 'log "ERROR" "Skript abgebrochen: $?" ; exit 1' ERR
-
-# Konfiguration
-REPO_URL="https://github.com/HagerJakob/RaspberryPi_Code.git"
-REPO_DIR="/home/admin/RaspberryPi_Code"
 LOG_FILE="/var/log/dashboard-startup.log"
-PI_USER="admin"
-PI_HOME="/home/admin"
+REPO_DIR="/home/admin/RaspberryPi_Code"
 FRONTEND_PORT="3000"
 FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
-
-# Absolute Pfade zu Commands
-IP_CMD="/usr/sbin/ip"
-SYSTEMCTL_CMD="/usr/bin/systemctl"
-GIT_CMD="/usr/bin/git"
 DOCKER_CMD="/usr/bin/docker"
-DOCKER_COMPOSE_CMD="/usr/bin/docker compose"  # Modernes Docker (Plugin)
-DAEMON_BROWSER_CMD="/usr/bin/daemon-browser"
-DAEMON_BROWSER_ALT_CMD="/usr/bin/daemonbrowser"
 SLEEP_CMD="/bin/sleep"
-MKDIR_CMD="/bin/mkdir"
-RM_CMD="/bin/rm"
-CD_CMD="builtin cd"
 
-# Logging-Funktion
 log() {
   local level="$1"
   shift
   local message="$*"
-  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  local timestamp
+  timestamp=$(date '+%Y-%m-%d %H:%M:%S')
   echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
 }
 
-# Fehler-Handler
 error_exit() {
   log "ERROR" "$1"
   exit 1
+}
+
+launch_browser() {
+  local browser_cmd=""
+
+  if command -v chromium-browser > /dev/null 2>&1; then
+    browser_cmd="chromium-browser"
+  elif command -v chromium > /dev/null 2>&1; then
+    browser_cmd="chromium"
+  elif command -v daemon-browser > /dev/null 2>&1; then
+    browser_cmd="daemon-browser"
+  elif command -v daemonbrowser > /dev/null 2>&1; then
+    browser_cmd="daemonbrowser"
+  fi
+
+  if [ -z "$browser_cmd" ]; then
+    log "ERROR" "Kein Browser gefunden"
+    return 1
+  fi
+
+  log "INFO" "Starte Browser: $browser_cmd $FRONTEND_URL"
+  nohup env DISPLAY=:0 "$browser_cmd" "$FRONTEND_URL" > /dev/null 2>&1 &
+  return 0
 }
 
 log "INFO" "=========================================="
 log "INFO" "Dashboard Auto-Start gestartet"
 log "INFO" "=========================================="
 
-# ============================================
-# 1. WLAN Interface aktivieren
-# ============================================
-log "INFO" "Aktiviere WLAN Interface wlan0..."
-if ! $IP_CMD link set wlan0 up 2>&1 | tee -a "$LOG_FILE"; then
-  log "WARN" "WLAN Interface konnte nicht aktiviert werden (möglicherweise bereits aktiv)"
-fi
-$SLEEP_CMD 2
-
-# ============================================
-# 2. Hotspot Services neu starten
-# ============================================
-log "INFO" "Starte Hotspot Services..."
-if ! $SYSTEMCTL_CMD restart hostapd 2>&1 | tee -a "$LOG_FILE"; then
-  log "WARN" "hostapd Restart fehlgeschlagen"
-fi
-$SLEEP_CMD 1
-
-if ! $SYSTEMCTL_CMD restart dnsmasq 2>&1 | tee -a "$LOG_FILE"; then
-  log "WARN" "dnsmasq Restart fehlgeschlagen"
-fi
-$SLEEP_CMD 2
-
-log "INFO" "Hotspot Services gestartet ✓"
-
-# ============================================
-# 3. Repository Verzeichnis prüfen
-# ============================================
-log "INFO" "Prüfe Repository Verzeichnis..."
 if [ ! -d "$REPO_DIR" ]; then
-  log "ERROR" "Repository nicht gefunden: $REPO_DIR"
-  log "ERROR" "Bitte initial installieren mit: git clone $REPO_URL $REPO_DIR"
-  error_exit "Repository fehlt! Installation erforderlich."
+  error_exit "Repository nicht gefunden: $REPO_DIR"
 fi
 
-log "INFO" "Repository gefunden: $REPO_DIR ✓"
 cd "$REPO_DIR" || error_exit "Konnte nicht in $REPO_DIR wechseln"
-log "INFO" "Wechsel zu: $(pwd)"
+log "INFO" "Arbeitsverzeichnis: $(pwd)"
 
-# ============================================
-# 3.5 Warte auf Docker Daemon
-# ============================================
-log "INFO" "Warte auf Docker Daemon..."
-DOCKER_WAIT=0
-MAX_DOCKER_WAIT=30
-while [ $DOCKER_WAIT -lt $MAX_DOCKER_WAIT ]; do
-  if $DOCKER_CMD ps > /dev/null 2>&1; then
-    log "INFO" "Docker Daemon bereit ✓"
-    break
-  fi
-  $SLEEP_CMD 1
-  DOCKER_WAIT=$((DOCKER_WAIT + 1))
-done
-
-if [ $DOCKER_WAIT -ge $MAX_DOCKER_WAIT ]; then
-  log "WARN" "Docker Daemon antwortet nicht nach 30 Sekunden, versuche trotzdem"
-fi
-
-# ============================================
-# 4. Docker Compose Up (ohne Build!)
-# ============================================
-log "INFO" "Starte Docker Compose (nutze gecachte Images)..."
-if ! $DOCKER_CMD compose up -d 2>&1 | tee -a "$LOG_FILE"; then
+log "INFO" "Starte Docker Compose..."
+if ! "$DOCKER_CMD" compose up -d 2>&1 | tee -a "$LOG_FILE"; then
   error_exit "Docker Compose Up fehlgeschlagen"
 fi
-log "INFO" "Docker Compose gestartet ✓"
-$SLEEP_CMD 5
 
-# ============================================
-# 5. Prüfe ob Docker Services laufen
-# ============================================
-log "INFO" "Prüfe Docker Container..."
-if $DOCKER_CMD ps | grep -q "frontend"; then
-  log "INFO" "Frontend Container läuft ✓"
-else
-  log "WARN" "Frontend Container läuft nicht"
-  $DOCKER_CMD compose ps | tee -a "$LOG_FILE"
-fi
-
-# ============================================
-# 6. Warte auf Frontend Ready (mit Health-Check)
-# ============================================
-log "INFO" "Warte auf Frontend Ready..."
+log "INFO" "Warte auf Frontend unter $FRONTEND_URL"
 WAIT_TIME=0
-MAX_WAIT=60  # 20 Sekunden für Boot
-DOCKER_CHECKED=0
-while [ $WAIT_TIME -lt $MAX_WAIT ]; do
-  # Checke Frontend
+MAX_WAIT=60
+while [ "$WAIT_TIME" -lt "$MAX_WAIT" ]; do
   if curl -s "$FRONTEND_URL" > /dev/null 2>&1; then
-    log "INFO" "Frontend antwortet! ✓"
-    # Kurz warten bis auch Backend ready ist
-    $SLEEP_CMD 2
+    log "INFO" "Frontend ist erreichbar ✓"
     break
   fi
-  
-  # Alle 5 Sekunden Log ausgabe
-  if [ $((WAIT_TIME % 5)) -eq 0 ]; then
-    log "INFO" "Warte auf Frontend... ($WAIT_TIME/$MAX_WAIT sec)"
-  fi
-  
   $SLEEP_CMD 1
   WAIT_TIME=$((WAIT_TIME + 1))
 done
 
-if [ $WAIT_TIME -ge $MAX_WAIT ]; then
-  log "ERROR" "Frontend antwortet nicht nach ${MAX_WAIT} Sekunden!"
-  log "ERROR" "Docker Container Status:"
-  $DOCKER_CMD compose ps | tee -a "$LOG_FILE"
-  error_exit "Frontend-Startup fehlgeschlagen"
+if [ "$WAIT_TIME" -ge "$MAX_WAIT" ]; then
+  error_exit "Frontend antwortet nicht nach ${MAX_WAIT} Sekunden"
 fi
 
-log "INFO" "Frontend bereit, starte Daemon Browser"
-
-# ============================================
-# 7. Starte Daemon Browser
-# ============================================
-log "INFO" "Starte Daemon Browser..."
-
-DAEMON_BROWSER_EXEC=""
-if [ -x "$DAEMON_BROWSER_CMD" ]; then
-  DAEMON_BROWSER_EXEC="$DAEMON_BROWSER_CMD"
-elif [ -x "$DAEMON_BROWSER_ALT_CMD" ]; then
-  DAEMON_BROWSER_EXEC="$DAEMON_BROWSER_ALT_CMD"
-elif command -v daemon-browser > /dev/null 2>&1; then
-  DAEMON_BROWSER_EXEC="$(command -v daemon-browser)"
-elif command -v daemonbrowser > /dev/null 2>&1; then
-  DAEMON_BROWSER_EXEC="$(command -v daemonbrowser)"
+if ! launch_browser; then
+  error_exit "Browser konnte nicht gestartet werden"
 fi
 
-# Prüfe ob Daemon Browser installiert ist
-if [ -z "$DAEMON_BROWSER_EXEC" ]; then
-  log "WARN" "Daemon Browser nicht gefunden, versuche zu installieren..."
-  if ! apt-get update 2>&1 | tee -a "$LOG_FILE"; then
-    log "WARN" "apt-get update fehlgeschlagen"
-  fi
-  if ! apt-get install -y daemon-browser 2>&1 | tee -a "$LOG_FILE"; then
-    log "WARN" "daemon-browser Installation fehlgeschlagen"
-  fi
-
-  if [ -x "$DAEMON_BROWSER_CMD" ]; then
-    DAEMON_BROWSER_EXEC="$DAEMON_BROWSER_CMD"
-  elif [ -x "$DAEMON_BROWSER_ALT_CMD" ]; then
-    DAEMON_BROWSER_EXEC="$DAEMON_BROWSER_ALT_CMD"
-  elif command -v daemon-browser > /dev/null 2>&1; then
-    DAEMON_BROWSER_EXEC="$(command -v daemon-browser)"
-  elif command -v daemonbrowser > /dev/null 2>&1; then
-    DAEMON_BROWSER_EXEC="$(command -v daemonbrowser)"
-  fi
-fi
-
-# Starte Daemon Browser
-log "INFO" "Starte: $DAEMON_BROWSER_EXEC $FRONTEND_URL"
-if [ -n "$DAEMON_BROWSER_EXEC" ]; then
-  # Starte Daemon Browser mit korrektem Display
-  # Falls pi User existiert, versuche als pi zu starten; sonst als root
-  if id "$PI_USER" &>/dev/null; then
-    log "INFO" "Starte Daemon Browser als User: $PI_USER"
-    nohup sudo -u "$PI_USER" bash -c "DISPLAY=:0 XAUTHORITY=$PI_HOME/.Xauthority $DAEMON_BROWSER_EXEC $FRONTEND_URL" > /dev/null 2>&1 &
-  else
-    log "INFO" "Starte Daemon Browser als root (User pi nicht found)"
-    DISPLAY=:0 "$DAEMON_BROWSER_EXEC" "$FRONTEND_URL" > /dev/null 2>&1 &
-  fi
-  
-  DAEMON_BROWSER_PID=$!
-  log "INFO" "Daemon Browser gestartet (PID: $DAEMON_BROWSER_PID) ✓"
-else
-  log "ERROR" "Daemon Browser konnte nicht gestartet werden"
-fi
-
-# ============================================
-# Startup abgeschlossen
-# ============================================
-log "INFO" "=========================================="
-log "INFO" "Auto-Start erfolgreich abgeschlossen! ✓"
-log "INFO" "=========================================="
-log "INFO" "Hotspot: RaspberryPi-Dashboard (192.168.4.1)"
-log "INFO" "Browser: $FRONTEND_URL"
-log "INFO" "Dashboard: http://192.168.4.1:${FRONTEND_PORT}"
-log "INFO" "Alt+F4: Browser schließen"
-log "INFO" "=========================================="
-log "INFO" "Service läuft weiter (Warten auf Beendigung)..."
-
-# Halte Service am Leben, damit systemd ihn nicht neu startet
-tail -f /dev/null
+log "INFO" "Auto-Start abgeschlossen"

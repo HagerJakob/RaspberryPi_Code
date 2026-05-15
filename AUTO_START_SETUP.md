@@ -1,9 +1,9 @@
 # Auto-Start Anleitung für Raspberry Pi Dashboard
 
 Dieses Setup sorgt dafür, dass beim Boot des Raspberry Pi:
-1. ✅ Der neueste Code von GitHub geklont wird
-2. ✅ Docker Container gebuildet werden
-3. ✅ Der Dashboard Server automatisch startet
+1. ✅ Docker Compose gestartet wird
+2. ✅ Das Frontend erreichbar ist
+3. ✅ Der Browser automatisch auf `http://localhost:3000` öffnet
 
 ---
 
@@ -11,39 +11,19 @@ Dieses Setup sorgt dafür, dass beim Boot des Raspberry Pi:
 
 - Raspberry Pi 4 mit Raspbian OS
 - Docker & Docker Compose installiert
-- Git installiert
-- Internet-Verbindung
+- Internet-Verbindung nur für die Erstinstallation
 
 ---
 
 ## 🚀 Setup auf dem Raspberry Pi
 
-### Schritt 1: Erste Git Clone (manuell)
+### Schritt 1: Repository einmalig klonen
 
 ```bash
 cd /home/pi
 git clone https://github.com/DEIN-GITHUB/RaspberryPi_Code.git
 cd RaspberryPi_Code
 ```
-
-**⚠️ WICHTIG: GitHub URL anpassen!**
-
-Öffne `start_dashboard.sh`:
-```bash
-nano start_dashboard.sh
-```
-
-Finde diese Zeile:
-```bash
-REPO_URL="https://github.com/dein-user/RaspberryPi_Code.git"
-```
-
-Ersetze mit deiner GitHub URL:
-```bash
-REPO_URL="https://github.com/DEIN-GITHUB/RaspberryPi_Code.git"
-```
-
-Speichern: `Ctrl+X` → `J` → `Enter`
 
 ### Schritt 2: Script ausführbar machen
 
@@ -97,24 +77,21 @@ chmod +x /home/pi/RaspberryPi_Code/start_dashboard.sh
 
 ## 🎯 Was passiert beim Boot?
 
-1. **Network wird geladen** (warte auf Internet)
-2. **Docker Service startet**
-3. **auto-start.service startet** → `start_dashboard.sh` wird ausgeführt
-4. **Git Clone/Pull** → Neueste Code wird heruntergeladen
-5. **Docker Build** → Images werden gebaut
-6. **Docker Compose Up** → Container starten
-7. **Dashboard ist online** 🎉
+1. **Docker Service startet**
+2. **auto-start.service startet** → `start_dashboard.sh` wird ausgeführt
+3. **Docker Compose Up** → Container starten
+4. **Browser öffnet automatisch** auf `http://localhost:3000`
 
-Alles dauert ca. **3-5 Minuten** beim ersten Start.
+Der Start dauert danach meist nur noch **ein paar Sekunden**.
 
 ---
 
 ## 📱 Zugriff auf Dashboard
 
 Nach dem Boot:
-- **Frontend:** `http://192.168.4.1:3000` (falls Hotspot lädt)
-- **Backend:** `http://192.168.4.1:5000`
-- **API:** `http://192.168.4.1:5000/api/database/download`
+- **Frontend lokal:** `http://localhost:3000`
+- **Frontend im Netzwerk:** `http://<raspberry-pi-ip>:3000`
+- **Backend:** `http://<raspberry-pi-ip>:5000`
 
 ---
 
@@ -137,8 +114,7 @@ git config --global credential.helper store
 ```bash
 # Manuell testen
 cd /home/pi/RaspberryPi_Code
-docker-compose build
-docker-compose up
+docker compose up -d
 ```
 
 ### Git URL falsch
@@ -170,7 +146,7 @@ sudo systemctl stop dashboard-auto-start
 
 - **systemd Logs:** `sudo journalctl -u dashboard-auto-start`
 - **Startup Log:** `/var/log/dashboard-startup.log`
-- **Docker Logs:** `docker-compose logs backend`
+- **Docker Logs:** `docker compose logs backend`
 
 ---
 

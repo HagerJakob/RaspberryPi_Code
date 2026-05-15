@@ -2,11 +2,9 @@
 
 ## Übersicht
 Dieses Setup startet beim Raspberry Pi Boot automatisch:
-1. ✅ WLAN Interface aktivieren
-2. ✅ WiFi Hotspot Services (hostapd, dnsmasq) neu starten
-3. ✅ GitHub Repository klonen
-4. ✅ Docker Compose aufbauen & starten
-5. ✅ Daemon Browser öffnen
+1. ✅ Docker Compose starten
+2. ✅ Auf das Frontend warten
+3. ✅ Browser auf `http://localhost:3000` öffnen
 
 ---
 
@@ -20,10 +18,7 @@ sudo apt-get install -y \
   git \
   docker.io \
   docker-compose \
-   daemon-browser \
-  hostapd \
-  dnsmasq \
-  dhcpcd5
+   chromium-browser
 ```
 
 ## Installation Schritt-für-Schritt
@@ -40,29 +35,14 @@ cd RaspberryPi_Code
 chmod +x /home/admin/RaspberryPi_Code/start_dashboard.sh
 ```
 
-### Schritt 3: Sudoers konfigurieren (optional, für Browser Launch)
-
-Damit das Skript den Browser als `admin` User starten kann ohne Passwort zu fragen:
-
-```bash
-sudo visudo -f /etc/sudoers.d/dashboard-admin
-```
-
-Füge folgende Zeile hinzu:
-```
-root ALL=(admin) NOPASSWD: /bin/bash
-```
-
-Speichern mit `Ctrl+X`, dann `Y`, dann `Enter`.
-
-### Schritt 4: Systemd Service installieren
+### Schritt 3: Systemd Service installieren
 
 Kopiere die Service-Datei in das systemd Verzeichnis:
 ```bash
 sudo cp /home/admin/RaspberryPi_Code/dashboard-auto-start.service /etc/systemd/system/
 ```
 
-### Schritt 5: Service aktivieren und testen
+### Schritt 4: Service aktivieren und testen
 
 Systemd neu laden:
 ```bash
@@ -79,14 +59,14 @@ Service manuell starten (um zu testen):
 sudo systemctl start dashboard-auto-start.service
 ```
 
-### Schritt 6: Überprüfe den Status
+### Schritt 5: Überprüfe den Status
 
 Status des Service:
 ```bash
 sudo systemctl status dashboard-auto-start.service
 ```
 
-### Schritt 7: Logs prüfen
+### Schritt 6: Logs prüfen
 
 Logs ansehen (live):
 ```bash
@@ -185,28 +165,17 @@ DISPLAY=:0 /usr/bin/daemon-browser http://localhost:3000 &
 
 ## Was passiert beim Boot
 
-1. **Boot-Sequenz (~/boot)**
-   - Linux Kernel lädt
-   - systemd startet
-
-2. **network.target erreichbar** (~5-10 Sekunden)
-   - systemd erkennt Dashboard Service
-
-3. **dashboard-auto-start.service startet** (~10-20 Sekunden)
+1. **Docker Service startet**
+2. **dashboard-auto-start.service startet** (~10-20 Sekunden)
    - ExecStart: `/bin/bash /home/admin/RaspberryPi_Code/start_dashboard.sh`
-
-4. **Start-Skript führt aus** (~30-60 Sekunden):
-   - WLAN Interface up
-   - Hostapd + DNSMASQ recheckieren
-   - Repo klonen (oder aktualisieren)
-   - Docker-Compose build + up
-   - 10 Sekunden warten
-   - Daemon Browser starten
-
-5. **Dashboard online** (~60-90 Sekunden nach Boot)
-   - Hotspot: `RaspberryPi-Dashboard` (192.168.4.1)
+3. **Start-Skript führt aus** (~10-30 Sekunden):
+   - Wechselt in das Repository-Verzeichnis
+   - Führt `docker compose up -d` aus
+   - Wartet auf das Frontend
+   - Öffnet den Browser auf `http://localhost:3000`
+4. **Dashboard online**
    - Browser: `http://localhost:3000` (lokal)
-   - Phone:   `http://192.168.4.1:3000` (über Hotspot)
+   - Von anderen Geräten: `http://<raspberry-pi-ip>:3000`
 
 ---
 
@@ -221,18 +190,12 @@ Beispiel-Output:
 ```
 [2026-02-20 08:35:42] [INFO] ==========================================
 [2026-02-20 08:35:42] [INFO] Dashboard Auto-Start gestartet
-[2026-02-20 08:35:42] [INFO] Aktiviere WLAN Interface wlan0...
-[2026-02-20 08:35:44] [INFO] Starte Hotspot Services...
-[2026-02-20 08:35:47] [INFO] Hotspot Services gestartet ✓
-[2026-02-20 08:35:47] [INFO] Klone Repository: https://github.com/HagerJakob/RaspberryPi_Code.git
-[2026-02-20 08:36:15] [INFO] Repository geklont ✓
-[2026-02-20 08:36:17] [INFO] Starte Docker Compose Build...
-[2026-02-20 08:37:45] [INFO] Docker Compose Build erfolgreich ✓
-[2026-02-20 08:37:47] [INFO] Starte Docker Compose (im Hintergrund)...
-[2026-02-20 08:37:50] [INFO] Docker Compose gestartet ✓
-[2026-02-20 08:38:00] [INFO] Starte Daemon Browser...
-[2026-02-20 08:38:01] [INFO] Daemon Browser gestartet (PID: 2845) ✓
-[2026-02-20 08:38:01] [INFO] Auto-Start erfolgreich abgeschlossen! ✓
+[2026-02-20 08:35:42] [INFO] Arbeitsverzeichnis: /home/admin/RaspberryPi_Code
+[2026-02-20 08:35:42] [INFO] Starte Docker Compose...
+[2026-02-20 08:35:50] [INFO] Warte auf Frontend unter http://localhost:3000
+[2026-02-20 08:36:02] [INFO] Frontend ist erreichbar ✓
+[2026-02-20 08:36:03] [INFO] Starte Browser: chromium-browser http://localhost:3000
+[2026-02-20 08:36:04] [INFO] Auto-Start abgeschlossen
 ```
 
 ### systemd Logs

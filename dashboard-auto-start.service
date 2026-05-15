@@ -1,5 +1,5 @@
 [Unit]
-Description=RaspberryPi Dashboard Auto-Start Service (WLAN + Hotspot + Docker + Kiosk)
+Description=RaspberryPi Dashboard Auto-Start Service (Docker + Browser)
 Documentation=https://github.com/HagerJakob/RaspberryPi_Code
 After=network-online.target docker.service
 Wants=network-online.target
