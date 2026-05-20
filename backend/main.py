@@ -184,6 +184,10 @@ async def uart_task():
                     uart_connected = False
                     await asyncio.sleep(1)
                     continue
+                last_data_time = current_time
+                if not uart_connected:
+                    uart_connected = True
+                    logger.info("UART-Rohdatenempfang gestartet - OBD verbunden")
                 buffer += raw_data.decode(errors='ignore')
                 
                 # Hex-String für Debugging
@@ -223,7 +227,6 @@ async def uart_task():
                             obd_data["SPEED"] = str(int(speed)) if speed >= 0 else "0"
                             obd_data["COOLANT"] = f"{temp:.1f}" if temp >= -40 else "0"
                             
-                            last_data_time = current_time
                             data_received_count += 1
                             
                             if not uart_connected:
