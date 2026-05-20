@@ -554,7 +554,7 @@ export default function Dashboard({ theme }: DashboardProps) {
           if (Number.isFinite(val)) {
             const el = els.temp;
             const bar = els.tempBar;
-            if (el) el.innerHTML = `${val.toFixed(1)}<span class="unit">°C</span>`;
+            if (el) el.innerHTML = `${Math.round(val)}<span class="unit">°C</span>`;
             setBarLevel(bar, (val / 120) * 100);
             newWarnings.coolant = val > 100;
           }
