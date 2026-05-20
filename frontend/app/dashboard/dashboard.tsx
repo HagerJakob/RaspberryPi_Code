@@ -265,8 +265,10 @@ export default function Dashboard({ theme }: DashboardProps) {
 
     let currentSpeed = 0;
     let currentRpm = 0;
+    let currentCoolant = 60;
     let targetSpeed = 0;
     let targetRpm = 0;
+    let targetCoolant = 60;
 
     const cx = 640;
     const cy = 398;
@@ -289,6 +291,20 @@ export default function Dashboard({ theme }: DashboardProps) {
       if (!bar) return;
       const level = clampPercent(percent);
       bar.style.height = `${level}%`;
+    };
+
+    const approachValue = (current: number, target: number, deltaMs: number, durationMs: number) => {
+      const next = current + (target - current) * (1 - Math.exp(-deltaMs / durationMs));
+      return Math.abs(target - next) < 0.05 ? target : next;
+    };
+
+    const updateCoolantWidget = (value: number) => {
+      const els = elementsRef.current;
+      const tempEl = els.temp;
+      const tempBar = els.tempBar;
+
+      if (tempEl) tempEl.innerHTML = `${Math.round(value)}<span class="unit">°C</span>`;
+      setBarLevel(tempBar, (value / 120) * 100);
     };
 
     // Cache metric elements once to avoid repeated DOM lookups on every message
@@ -494,20 +510,12 @@ export default function Dashboard({ theme }: DashboardProps) {
       const deltaMs = Math.min(timestamp - lastFrameTime, 50);
       lastFrameTime = timestamp;
 
-      const rpmEase = 1 - Math.pow(0.001, deltaMs / 16);
-      const speedEase = 1 - Math.pow(0.001, deltaMs / 16);
-
-      currentRpm += (targetRpm - currentRpm) * rpmEase;
-      currentSpeed += (targetSpeed - currentSpeed) * speedEase;
-
-      if (Math.abs(targetRpm - currentRpm) < 0.5) {
-        currentRpm = targetRpm;
-      }
-      if (Math.abs(targetSpeed - currentSpeed) < 0.5) {
-        currentSpeed = targetSpeed;
-      }
+      currentRpm = approachValue(currentRpm, targetRpm, deltaMs, 130);
+      currentSpeed = approachValue(currentSpeed, targetSpeed, deltaMs, 130);
+      currentCoolant = approachValue(currentCoolant, targetCoolant, deltaMs, 180);
 
       drawGauge(currentRpm, currentSpeed);
+      updateCoolantWidget(currentCoolant);
       frameId = requestAnimationFrame(animate);
     };
 
@@ -542,6 +550,7 @@ export default function Dashboard({ theme }: DashboardProps) {
         
         if (data.RPM !== undefined) targetRpm = parseInt(data.RPM, 10);
         if (data.SPEED !== undefined) targetSpeed = parseInt(data.SPEED, 10);
+        if (data.COOLANT !== undefined) targetCoolant = parseFloat(data.COOLANT);
         
         // Shift indicator logic
         if (targetRpm < 1000 && targetSpeed >= 20) {
@@ -557,12 +566,10 @@ export default function Dashboard({ theme }: DashboardProps) {
         const newWarnings = { ...warnings };
 
         if (data.COOLANT !== undefined) {
-          const val = parseInt(data.COOLANT, 10);
-          const el = els.temp;
-          const bar = els.tempBar;
-          if (el) el.innerHTML = `${val}<span class="unit">°C</span>`;
-          setBarLevel(bar, (val / 120) * 100);
-          newWarnings.coolant = val > 100;
+          const val = parseFloat(data.COOLANT);
+          if (Number.isFinite(val)) {
+            newWarnings.coolant = val > 100;
+          }
         }
         if (data.OIL !== undefined) {
           const val = parseInt(data.OIL, 10);
@@ -622,6 +629,7 @@ export default function Dashboard({ theme }: DashboardProps) {
       }
     };
 
+    updateCoolantWidget(currentCoolant);
     // start animation loop
     frameId = requestAnimationFrame(animate);
 
