@@ -49,7 +49,7 @@ def close_uart():
 
 # Konstanten
 AUTO_ID = 1  # Standardauto für dieses Projekt
-broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
+broadcast_interval = 0.1  # Broadcast alle 100ms für deutlich weniger Last
 
 
 def get_display_time() -> datetime:
