@@ -115,8 +115,7 @@ async def uart_task():
     buffer = ""
     first_message = True
     uart_connected = False
-    last_data_time = 0
-    UART_TIMEOUT = 2.0  # Sekunden ohne Daten bevor "not connected"
+    uart_data_active = False
     data_received_count = 0
     debug_count = 0  # Zähler für periodisches Debug-Output
     last_health_check = 0  # Zeit des letzten Health Checks
@@ -134,6 +133,8 @@ async def uart_task():
                 init_uart()
                 await asyncio.sleep(0.1)
                 continue
+
+            uart_connected = bool(ser and ser.is_open)
             
             # Zeige periodisch Debug-Info (alle ~1 Sekunde)
             if current_time - last_health_check >= 1.0:
@@ -182,12 +183,10 @@ async def uart_task():
                     logger.warning(f"UART-Lesen fehlgeschlagen: {e}")
                     close_uart()
                     uart_connected = False
+                    uart_data_active = False
                     await asyncio.sleep(1)
                     continue
-                last_data_time = current_time
-                if not uart_connected:
-                    uart_connected = True
-                    logger.info("UART-Rohdatenempfang gestartet - OBD verbunden")
+                uart_data_active = True
                 buffer += raw_data.decode(errors='ignore')
                 
                 # Hex-String für Debugging
@@ -258,19 +257,16 @@ async def uart_task():
                     else:
                         logger.warning(f"[UART ERROR] Zeile passt nicht zum erwarteten Format (braucht 2x ':'): '{line}'")
             
-            # Prüfe ob Timeout überschritten (keine Daten seit UART_TIMEOUT)
-            if uart_connected and (current_time - last_data_time) > UART_TIMEOUT:
-                uart_connected = False
-                logger.warning(f"UART-Timeout: Keine Daten seit {UART_TIMEOUT} Sekunden - OBD not connected")
-            
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
             if (current_time - last_broadcast_time) >= broadcast_interval:
                 corrected_time = datetime.now() + timedelta(hours=1)
                 broadcast_data = {
                     **obd_data,
                     "UART_CONNECTED": uart_connected,
+                    "UART_DATA_ACTIVE": uart_data_active,
                     "TIME": corrected_time.strftime("%H:%M:%S"),
                 }
+                uart_data_active = False
                 for ws in list(connected_clients):
                     try:
                         await ws.send_json(broadcast_data)
@@ -285,6 +281,7 @@ async def uart_task():
             if isinstance(e, (OSError, serial.SerialException)):
                 close_uart()
                 uart_connected = False
+                uart_data_active = False
             await asyncio.sleep(0.1)
 
 
