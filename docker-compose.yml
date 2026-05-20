@@ -34,7 +34,7 @@ services:
       - backend
     networks:
       - app-network
-    command: npm run dev
+    command: sh -c "npm ci --include=dev && npm run dev"
     restart: always
 
 networks:
