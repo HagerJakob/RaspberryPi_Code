@@ -11,8 +11,8 @@ import platform
 import os
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from db import DatabaseConnection
-from data_aggregator import DataAggregator, RawDataPoint
+# from db import DatabaseConnection
+# from data_aggregator import DataAggregator, RawDataPoint
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 # Globale Variablen
 ser = None
 connected_clients = set()
-db_url = os.getenv("DATABASE_URL", "database.db")
-db = DatabaseConnection(db_url)
-aggregator = DataAggregator()
+# db_url = os.getenv("DATABASE_URL", "database.db")
+# db = DatabaseConnection(db_url)
+# aggregator = DataAggregator()
 
 
 def close_uart():
@@ -250,19 +250,20 @@ async def uart_task():
                             if data_received_count % 20 == 0:  # Alle 20 Datenpunkte loggen (ca. alle 10 Sekunden bei 500ms Intervall)
                                 logger.info(f"[UART OK] Daten empfangen #{data_received_count}: RPM={rpm:.0f}, SPEED={speed:.0f}, COOLANT={temp:.1f}°C")
                             
-                            # Füge Rohwert zum Aggregator hinzu
-                            raw_data = RawDataPoint(
-                                timestamp=datetime.now(),
-                                rpm=rpm,
-                                speed=speed,
-                                coolant_temp=temp,
-                                oil_temp=safe_float(obd_data.get("OIL")),
-                                fuel_level=safe_float(obd_data.get("FUEL")),
-                                voltage=safe_float(obd_data.get("VOLTAGE")),
-                                boost=safe_float(obd_data.get("BOOST")),
-                                oil_pressure=safe_float(obd_data.get("OILPRESS")),
-                            )
-                            aggregator.add_data(raw_data)
+                            # Rohdaten werden nur fuer die Live-Anzeige verarbeitet.
+                            # Datenbank-Logging ist fuer den Darstellungsfokus auskommentiert.
+                            # raw_data = RawDataPoint(
+                            #     timestamp=datetime.now(),
+                            #     rpm=rpm,
+                            #     speed=speed,
+                            #     coolant_temp=temp,
+                            #     oil_temp=safe_float(obd_data.get("OIL")),
+                            #     fuel_level=safe_float(obd_data.get("FUEL")),
+                            #     voltage=safe_float(obd_data.get("VOLTAGE")),
+                            #     boost=safe_float(obd_data.get("BOOST")),
+                            #     oil_pressure=safe_float(obd_data.get("OILPRESS")),
+                            # )
+                            # aggregator.add_data(raw_data)
                         except (ValueError, IndexError) as e:
                             logger.warning(f"[UART ERROR] Fehler beim Parsen der OBD-Daten '{line}': {e}")
                     else:
@@ -297,42 +298,42 @@ async def uart_task():
 
 
 # Speichere aggregierte Daten in die Datenbank
-async def database_writer_task():
-    """Speichert Aggregations-Daten in die Datenbank"""
-    while True:
-        try:
-            # 1-Sekunden Durchschnitte speichern
-            if aggregator.should_save_1sec():
-                avg_data = aggregator.get_1sec_average()
-                if avg_data and ('rpm' in avg_data or 'speed' in avg_data):
-                    db.insert_log_1sec(
-                        auto_id=AUTO_ID,
-                        geschwindigkeit=avg_data.get('speed', 0.0),
-                        rpm=avg_data.get('rpm', 0.0),
-                    )
-                    logger.info(f"1sec-Daten gespeichert: {avg_data}")
-                    aggregator.reset_1sec_timer()
-            
-            # 10-Sekunden Durchschnitte speichern
-            if aggregator.should_save_10sec():
-                avg_data = aggregator.get_10sec_average()
-                if avg_data:
-                    db.insert_log_10sec(
-                        auto_id=AUTO_ID,
-                        coolant_temp=avg_data.get('coolant_temp', 0.0),
-                        oil_temp=avg_data.get('oil_temp', 0.0),
-                        fuel_level=avg_data.get('fuel_level', 0.0),
-                        voltage=avg_data.get('voltage', 0.0),
-                        boost=avg_data.get('boost', 0.0),
-                        oil_pressure=avg_data.get('oil_pressure', 0.0),
-                    )
-                    logger.info(f"10sec-Daten gespeichert: {avg_data}")
-                    aggregator.reset_10sec_timer()
-            
-            await asyncio.sleep(0.1)
-        except Exception as e:
-            logger.error(f"Fehler bei Datenbank-Speicherung: {e}")
-            await asyncio.sleep(1)
+# async def database_writer_task():
+#     """Speichert Aggregations-Daten in die Datenbank"""
+#     while True:
+#         try:
+#             # 1-Sekunden Durchschnitte speichern
+#             if aggregator.should_save_1sec():
+#                 avg_data = aggregator.get_1sec_average()
+#                 if avg_data and ('rpm' in avg_data or 'speed' in avg_data):
+#                     db.insert_log_1sec(
+#                         auto_id=AUTO_ID,
+#                         geschwindigkeit=avg_data.get('speed', 0.0),
+#                         rpm=avg_data.get('rpm', 0.0),
+#                     )
+#                     logger.info(f"1sec-Daten gespeichert: {avg_data}")
+#                     aggregator.reset_1sec_timer()
+#             
+#             # 10-Sekunden Durchschnitte speichern
+#             if aggregator.should_save_10sec():
+#                 avg_data = aggregator.get_10sec_average()
+#                 if avg_data:
+#                     db.insert_log_10sec(
+#                         auto_id=AUTO_ID,
+#                         coolant_temp=avg_data.get('coolant_temp', 0.0),
+#                         oil_temp=avg_data.get('oil_temp', 0.0),
+#                         fuel_level=avg_data.get('fuel_level', 0.0),
+#                         voltage=avg_data.get('voltage', 0.0),
+#                         boost=avg_data.get('boost', 0.0),
+#                         oil_pressure=avg_data.get('oil_pressure', 0.0),
+#                     )
+#                     logger.info(f"10sec-Daten gespeichert: {avg_data}")
+#                     aggregator.reset_10sec_timer()
+#             
+#             await asyncio.sleep(0.1)
+#         except Exception as e:
+#             logger.error(f"Fehler bei Datenbank-Speicherung: {e}")
+#             await asyncio.sleep(1)
 
 
 # Lifespan-Context für Startup/Shutdown
@@ -341,14 +342,13 @@ async def lifespan(app: FastAPI):
     # Startup
     init_uart()
     uart_bg_task = asyncio.create_task(uart_task())
-    db_bg_task = asyncio.create_task(database_writer_task())
-    logger.info("Backend gestartet - UART und Datenbankschreiber aktiviert")
+    # db_bg_task = asyncio.create_task(database_writer_task())
+    logger.info("Backend gestartet - nur Live-Anzeige aktiviert")
     yield
     # Shutdown
     if ser:
         ser.close()
     uart_bg_task.cancel()
-    db_bg_task.cancel()
     logger.info("Backend beendet")
 
 # FastAPI App erstellen
@@ -380,74 +380,74 @@ async def health_check():
 async def get_data():
     return {"message": "Verwenden Sie WebSocket für Live-Daten"}
 
-@app.get("/api/logs/1sec")
-async def get_logs_1sec(limit: int = 60):
-    """Holt die letzten 1-Sekunden Logs"""
-    logs = db.get_latest_logs_1sec(AUTO_ID, limit)
-    return {"logs": logs}
-
-@app.get("/api/logs/10sec")
-async def get_logs_10sec(limit: int = 60):
-    """Holt die letzten 10-Sekunden Logs"""
-    logs = db.get_latest_logs_10sec(AUTO_ID, limit)
-    return {"logs": logs}
-
-@app.get("/api/database/download")
-async def download_database():
-    """Lädt die Datenbank-Datei herunter"""
-    db_path = db.db_path
-    return FileResponse(
-        path=db_path,
-        filename="database.db",
-        media_type="application/octet-stream"
-    )
-
-
-def _build_csv_text() -> str:
-    tables = ["owners", "auto", "logs_1sec", "logs_10sec"]
-    output = io.StringIO()
-
-    with db.get_connection() as conn:
-        cursor = conn.cursor()
-        for table in tables:
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                (table,),
-            )
-            if not cursor.fetchone():
-                continue
-
-            output.write(f"# table: {table}\n")
-
-            cursor.execute(f"PRAGMA table_info({table})")
-            columns = [row[1] for row in cursor.fetchall()]
-            if not columns:
-                output.write("\n")
-                continue
-
-            writer = csv.writer(output)
-            writer.writerow(columns)
-
-            cursor.execute(f"SELECT * FROM {table}")
-            rows = cursor.fetchall()
-            for row in rows:
-                writer.writerow([row[col] for col in columns])
-
-            output.write("\n")
-
-    return output.getvalue()
+# @app.get("/api/logs/1sec")
+# async def get_logs_1sec(limit: int = 60):
+#     """Holt die letzten 1-Sekunden Logs"""
+#     logs = db.get_latest_logs_1sec(AUTO_ID, limit)
+#     return {"logs": logs}
+#
+# @app.get("/api/logs/10sec")
+# async def get_logs_10sec(limit: int = 60):
+#     """Holt die letzten 10-Sekunden Logs"""
+#     logs = db.get_latest_logs_10sec(AUTO_ID, limit)
+#     return {"logs": logs}
+#
+# @app.get("/api/database/download")
+# async def download_database():
+#     """Lädt die Datenbank-Datei herunter"""
+#     db_path = db.db_path
+#     return FileResponse(
+#         path=db_path,
+#         filename="database.db",
+#         media_type="application/octet-stream"
+#     )
 
 
-@app.get("/api/database/download-text")
-async def download_database_text():
-    """Lädt die Datenbank als Text (CSV) herunter"""
-    csv_text = _build_csv_text()
-    filename = f"database_{datetime.now().strftime('%Y-%m-%d')}.txt"
-    return Response(
-        content=csv_text,
-        media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+# def _build_csv_text() -> str:
+#     tables = ["owners", "auto", "logs_1sec", "logs_10sec"]
+#     output = io.StringIO()
+#
+#     with db.get_connection() as conn:
+#         cursor = conn.cursor()
+#         for table in tables:
+#             cursor.execute(
+#                 "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+#                 (table,),
+#             )
+#             if not cursor.fetchone():
+#                 continue
+#
+#             output.write(f"# table: {table}\n")
+#
+#             cursor.execute(f"PRAGMA table_info({table})")
+#             columns = [row[1] for row in cursor.fetchall()]
+#             if not columns:
+#                 output.write("\n")
+#                 continue
+#
+#             writer = csv.writer(output)
+#             writer.writerow(columns)
+#
+#             cursor.execute(f"SELECT * FROM {table}")
+#             rows = cursor.fetchall()
+#             for row in rows:
+#                 writer.writerow([row[col] for col in columns])
+#
+#             output.write("\n")
+#
+#     return output.getvalue()
+#
+#
+# @app.get("/api/database/download-text")
+# async def download_database_text():
+#     """Lädt die Datenbank als Text (CSV) herunter"""
+#     csv_text = _build_csv_text()
+#     filename = f"database_{datetime.now().strftime('%Y-%m-%d')}.txt"
+#     return Response(
+#         content=csv_text,
+#         media_type="text/plain",
+#         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+#     )
 
 
 @app.websocket("/ws")
