@@ -31,6 +31,18 @@ db_url = os.getenv("DATABASE_URL", "database.db")
 db = DatabaseConnection(db_url)
 aggregator = DataAggregator()
 
+
+def close_uart():
+    """Schließt die aktuelle UART-Verbindung und setzt die Globals zurück."""
+    global ser, SERIAL_PORT
+    if ser:
+        try:
+            ser.close()
+        except Exception:
+            pass
+    ser = None
+    SERIAL_PORT = None
+
 # Konstanten
 AUTO_ID = 1  # Standardauto für dieses Projekt
 broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
@@ -109,16 +121,31 @@ async def uart_task():
     debug_count = 0  # Zähler für periodisches Debug-Output
     last_health_check = 0  # Zeit des letzten Health Checks
     last_port_scan = 0  # Zeit des letzten Port Scans
+    last_reconnect_attempt = 0  # Zeit des letzten Wiederverbindungsversuchs
     
     while True:
         try:
             current_time = asyncio.get_event_loop().time()
             debug_count += 1
+
+            if ser is None and (current_time - last_reconnect_attempt) >= 5.0:
+                last_reconnect_attempt = current_time
+                logger.warning("UART nicht verfügbar - versuche Neuinitialisierung")
+                init_uart()
+                await asyncio.sleep(0.1)
+                continue
             
             # Zeige periodisch Debug-Info (alle ~1 Sekunde)
             if current_time - last_health_check >= 1.0:
                 last_health_check = current_time
-                in_waiting = ser.in_waiting if ser else -1
+                try:
+                    in_waiting = ser.in_waiting if ser else -1
+                except (OSError, serial.SerialException) as e:
+                    logger.warning(f"UART-Health-Check fehlgeschlagen: {e}")
+                    close_uart()
+                    uart_connected = False
+                    await asyncio.sleep(1)
+                    continue
                 logger.info(f"[UART HEALTH] ser={ser is not None}, in_waiting={in_waiting}, buffer_len={len(buffer)}, connected={uart_connected}")
             
             # Scanne alle Ports auf der Suche nach Daten (alle 3 Sekunden)
@@ -138,8 +165,25 @@ async def uart_task():
                     except Exception as e:
                         pass  # Ignoriere Fehler beim Scan
             
-            if ser and ser.in_waiting:
-                raw_data = ser.read(ser.in_waiting)
+            if ser:
+                try:
+                    waiting = ser.in_waiting
+                except (OSError, serial.SerialException) as e:
+                    logger.warning(f"UART-Zugriff fehlgeschlagen: {e}")
+                    close_uart()
+                    uart_connected = False
+                    await asyncio.sleep(1)
+                    continue
+
+            if ser and waiting:
+                try:
+                    raw_data = ser.read(waiting)
+                except (OSError, serial.SerialException) as e:
+                    logger.warning(f"UART-Lesen fehlgeschlagen: {e}")
+                    close_uart()
+                    uart_connected = False
+                    await asyncio.sleep(1)
+                    continue
                 buffer += raw_data.decode(errors='ignore')
                 
                 # Hex-String für Debugging
@@ -235,6 +279,9 @@ async def uart_task():
             await asyncio.sleep(0.001)
         except Exception as e:
             logger.error(f"Fehler bei UART-Verarbeitung: {e}")
+            if isinstance(e, (OSError, serial.SerialException)):
+                close_uart()
+                uart_connected = False
             await asyncio.sleep(0.1)
 
 
