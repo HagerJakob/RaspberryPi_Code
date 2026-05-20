@@ -263,8 +263,10 @@ export default function Dashboard({ theme }: DashboardProps) {
     canvas.style.height = `${height}px`;
     ctx.scale(dpr, dpr);
 
-    let speed = 0;
-    let rpm = 0;
+    let currentSpeed = 0;
+    let currentRpm = 0;
+    let targetSpeed = 0;
+    let targetRpm = 0;
 
     const cx = 640;
     const cy = 398;
@@ -362,7 +364,7 @@ export default function Dashboard({ theme }: DashboardProps) {
 
     drawAndCacheScales();
 
-    function drawGauge() {
+    function drawGauge(displayRpm: number, displaySpeed: number) {
       if (!canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -380,7 +382,7 @@ export default function Dashboard({ theme }: DashboardProps) {
       ctx.stroke();
 
       // RPM gradient arc
-      const p = Math.min(rpm / 8000, 1);
+      const p = Math.min(displayRpm / 8000, 1);
       const rpmEnd = start + (end - start) * p;
       ctx.strokeStyle = activeTheme.accent;
       ctx.lineWidth = 60;
@@ -389,7 +391,7 @@ export default function Dashboard({ theme }: DashboardProps) {
       ctx.stroke();
 
       // Laser-style speed needle with holder
-      const sp = Math.max(0, Math.min(speed / 255, 1));
+      const sp = Math.max(0, Math.min(displaySpeed / 255, 1));
       const targetAngle = start + (end - start) * sp;
       const pivotY = cy - 12;
       const targetX = cx + Math.cos(targetAngle) * rInner;
@@ -455,7 +457,7 @@ export default function Dashboard({ theme }: DashboardProps) {
       ctx.fillStyle = activeTheme.speedText;
       ctx.shadowColor = activeTheme.speedShadow;
       ctx.shadowBlur = 4;
-      ctx.fillText(String(speed), cx, cy - 140);
+      ctx.fillText(String(Math.round(displaySpeed)), cx, cy - 140);
       ctx.shadowBlur = 0;
 
       // km/h Einheit
@@ -486,22 +488,27 @@ export default function Dashboard({ theme }: DashboardProps) {
     };
 
     let frameId: number | null = null;
-    let needsRedraw = true;
-    let lastUpdateTime = 0;
-    const updateThrottle = 16; // ~60 FPS
+    let lastFrameTime = performance.now();
 
-    const requestDraw = () => {
-      if (frameId !== null) return;
-      frameId = requestAnimationFrame((timestamp) => {
-        frameId = null;
-        if (timestamp - lastUpdateTime >= updateThrottle && needsRedraw) {
-          lastUpdateTime = timestamp;
-          drawGauge();
-          needsRedraw = false;
-        } else if (needsRedraw) {
-          requestDraw();
-        }
-      });
+    const animate = (timestamp: number) => {
+      const deltaMs = Math.min(timestamp - lastFrameTime, 50);
+      lastFrameTime = timestamp;
+
+      const rpmEase = 1 - Math.pow(0.001, deltaMs / 16);
+      const speedEase = 1 - Math.pow(0.001, deltaMs / 16);
+
+      currentRpm += (targetRpm - currentRpm) * rpmEase;
+      currentSpeed += (targetSpeed - currentSpeed) * speedEase;
+
+      if (Math.abs(targetRpm - currentRpm) < 0.5) {
+        currentRpm = targetRpm;
+      }
+      if (Math.abs(targetSpeed - currentSpeed) < 0.5) {
+        currentSpeed = targetSpeed;
+      }
+
+      drawGauge(currentRpm, currentSpeed);
+      frameId = requestAnimationFrame(animate);
     };
 
     let lastMessageTime = 0;
@@ -533,16 +540,13 @@ export default function Dashboard({ theme }: DashboardProps) {
         }
         lastMessageTime = now;
         
-        const oldRpm = rpm;
-        const oldSpeed = speed;
-
-        if (data.RPM !== undefined) rpm = parseInt(data.RPM, 10);
-        if (data.SPEED !== undefined) speed = parseInt(data.SPEED, 10);
+        if (data.RPM !== undefined) targetRpm = parseInt(data.RPM, 10);
+        if (data.SPEED !== undefined) targetSpeed = parseInt(data.SPEED, 10);
         
         // Shift indicator logic
-        if (rpm < 1000 && speed >= 20) {
+        if (targetRpm < 1000 && targetSpeed >= 20) {
           setShiftIndicator("downshift");
-        } else if (rpm > 4000 && speed < 140) {
+        } else if (targetRpm > 4000 && targetSpeed < 140) {
           setShiftIndicator("upshift");
         } else {
           setShiftIndicator(null);
@@ -613,18 +617,13 @@ export default function Dashboard({ theme }: DashboardProps) {
         
         setWarnings(newWarnings);
 
-        if (rpm !== oldRpm || speed !== oldSpeed) {
-          needsRedraw = true;
-          requestDraw();
-        }
       } catch (e) {
         console.error("Parse error:", e);
       }
     };
 
-    // initial draw on next animation frame
-    needsRedraw = true;
-    requestDraw();
+    // start animation loop
+    frameId = requestAnimationFrame(animate);
 
     return () => {
       try {
