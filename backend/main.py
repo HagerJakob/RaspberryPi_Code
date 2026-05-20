@@ -127,6 +127,7 @@ async def uart_task():
     first_message = True
     uart_connected = False
     uart_data_active = False
+    new_uart_value_received = False
     data_received_count = 0
     debug_count = 0  # Zähler für periodisches Debug-Output
     last_health_check = 0  # Zeit des letzten Health Checks
@@ -236,6 +237,7 @@ async def uart_task():
                             obd_data["RPM"] = str(int(rpm)) if rpm >= 0 else "0"
                             obd_data["SPEED"] = str(int(speed)) if speed >= 0 else "0"
                             obd_data["COOLANT"] = f"{temp:.1f}" if temp >= -40 else "0"
+                            new_uart_value_received = True
                             
                             data_received_count += 1
                             
@@ -269,7 +271,7 @@ async def uart_task():
                         logger.warning(f"[UART ERROR] Zeile passt nicht zum erwarteten Format (braucht 2x ':'): '{line}'")
             
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
-            if (current_time - last_broadcast_time) >= broadcast_interval:
+            if new_uart_value_received and (current_time - last_broadcast_time) >= broadcast_interval:
                 corrected_time = get_display_time()
                 broadcast_data = {
                     **obd_data,
@@ -285,6 +287,7 @@ async def uart_task():
                         connected_clients.discard(ws)
                 logger.debug(f"OBD-Daten gesendet: {broadcast_data}")
                 last_broadcast_time = current_time
+                new_uart_value_received = False
             
             await asyncio.sleep(0.001)
         except Exception as e:
