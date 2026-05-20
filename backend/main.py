@@ -13,6 +13,10 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from db import DatabaseConnection
 from data_aggregator import DataAggregator, RawDataPoint
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None
 
 # UART Konfiguration für OBD-Daten
 # Raspberry Pi Standard UART Ports
@@ -46,6 +50,13 @@ def close_uart():
 # Konstanten
 AUTO_ID = 1  # Standardauto für dieses Projekt
 broadcast_interval = 0.016  # Broadcast alle ~16ms für 60 FPS
+
+
+def get_display_time() -> datetime:
+    """Gibt die aktuelle lokale Zeit für die Anzeige zurück."""
+    if ZoneInfo is not None:
+        return datetime.now(ZoneInfo("Europe/Vienna"))
+    return datetime.now().astimezone()
 
 # UART initialisieren
 def init_uart():
@@ -259,7 +270,7 @@ async def uart_task():
             
             # Broadcast gesammelte Daten wenn genug Zeit vergangen ist
             if (current_time - last_broadcast_time) >= broadcast_interval:
-                corrected_time = datetime.now() + timedelta(hours=1)
+                corrected_time = get_display_time()
                 broadcast_data = {
                     **obd_data,
                     "UART_CONNECTED": uart_connected,
